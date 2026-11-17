@@ -11,12 +11,7 @@ import DoctorQuestions from '../components/DoctorQuestions';
 import ReadAloud from '../components/ReadAloud';
 import ChatBox from '../components/ChatBox';
 import LanguageToggle from '../components/LanguageToggle';
-
-const MULTILINGUAL_DISCLAIMERS = {
-  en: "Medical Disclaimer: SehatSamajh is an educational AI tool designed to help you understand medical documents in plain language. It DOES NOT provide medical diagnosis, clinical opinions, or treatment advice. Never change, pause, or stop prescribed medication on your own. Always discuss all lab results and prescriptions directly with a qualified healthcare professional.",
-  ur: "طبی دستبرداری: صحت سمجھ ایک تعلیمی اے آئی ٹول ہے جو طبی دستاویزات کو آسان زبان میں سمجھنے کے لیے بنایا گیا ہے۔ یہ کوئی طبی تشخیص، معائنہ یا علاج کی تجویز فراہم نہیں کرتا۔ اپنے معالج (ڈاکٹر) کے مشورے کے بغیر ادویات میں کبھی خود سے ردوبدل نہ کریں اور نہ ہی بند کریں۔ اپنی تمام رپورٹس اور نسخہ جات مستند ڈاکٹر کو دکھا کر ان کی رہنمائی حاصل کریں۔",
-  roman_ur: "Medical Disclaimer: SehatSamajh ek taleemi AI tool hai jo medical reports aur prescriptions ko aasan zuban mein samajhnay ke liye banaya gaya hai. Yeh koi tibbi tashkhees (diagnosis) ya ilaj tajweez nahi karta. Apnay doctor ke mashwaray ke baghair dawai hargiz tabdeel ya band na karein. Apni reports aur prescriptions hamesha qualified doctor ko dikhayen."
-};
+import { t } from '../i18n';
 
 export default function Result({
   result,
@@ -50,22 +45,12 @@ export default function Result({
   // Format document type badge
   const docTypeLabel =
     result.doc_type === 'lab_report'
-      ? isUrdu
-        ? 'لیب ٹیسٹ رپورٹ'
-        : language === 'roman_ur'
-        ? 'Lab Blood Report'
-        : 'Laboratory Test Report'
+      ? t('docTypeLab', language)
       : result.doc_type === 'prescription'
-      ? isUrdu
-        ? 'ڈاکٹر کا نسخہ (Rx)'
-        : language === 'roman_ur'
-        ? 'Doctor Prescription (Rx)'
-        : 'Doctor Prescription (Rx)'
-      : isUrdu
-      ? 'طبی دستاویز'
-      : 'Medical Document';
+      ? t('docTypeRx', language)
+      : t('docTypeUnknown', language);
 
-  const activeDisclaimer = MULTILINGUAL_DISCLAIMERS[language] || result.disclaimer;
+  const activeDisclaimer = result.disclaimer || t('disclaimerText', language);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between" dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -78,7 +63,7 @@ export default function Result({
             className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-semibold text-sm transition-colors"
           >
             <RotateCcw className="w-4 h-4 text-emerald-600" />
-            <span>{isUrdu ? 'نیا تجزیہ کریں' : 'New Analysis'}</span>
+            <span className={isUrdu ? 'font-urdu' : ''}>{t('newAnalysis', language)}</span>
           </button>
 
           <div className="flex items-center gap-3">
@@ -102,7 +87,7 @@ export default function Result({
               <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-emerald-100 text-emerald-800">
                 {docTypeLabel}
               </span>
-              <span className="text-xs text-slate-400 font-semibold">• Grade-6 Plain Language</span>
+              <span className="text-xs text-slate-400 font-semibold">• {t('summaryBadge', language)}</span>
             </div>
 
             <div className="text-xs text-slate-500 font-medium">
@@ -112,7 +97,7 @@ export default function Result({
 
           <div className="mt-5">
             <h2 className={`text-xl sm:text-2xl font-black text-slate-950 mb-3 ${isUrdu ? 'font-urdu' : ''}`}>
-              {isUrdu ? 'خلاصہ اور اہم نکات' : language === 'roman_ur' ? 'Khulasa Aur Aham Nuqaat' : 'Plain Language Summary'}
+              {t('summaryTitle', language)}
             </h2>
             <p className={`text-base sm:text-lg text-slate-700 leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
               {result.summary}
@@ -144,7 +129,7 @@ export default function Result({
             <ShieldCheck className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
             <div>
               <strong className="font-bold block mb-1">
-                {isUrdu ? 'لازمی طبی دستبرداری (Disclaimer):' : 'Mandatory Medical Disclaimer:'}
+                {t('disclaimerLabel', language)}:
               </strong>
               <p className={isUrdu ? 'font-urdu' : ''}>
                 {activeDisclaimer}
@@ -158,7 +143,7 @@ export default function Result({
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-400">
         <p>SehatSamajh • AI for Accessible Healthcare & Well-Being (UN SDG 3)</p>
         <p className="mt-1">
-          Designed for Pakistani patients. Not a substitute for professional clinical medical advice.
+          Designed for Pakistani patients. Always confirm with your doctor.
         </p>
       </footer>
     </div>

@@ -9,7 +9,7 @@ Date: 16-Nov-2026
 PATIENT INFORMATION:
 Name: Zainab Bibi              Age: 36 Years      Gender: Female
 Weight: 62 kg                  BP: 125/82 mmHg    Temp: 100.4 F
-Diagnosis / Presentation: Acute upper respiratory tract infection, productive cough, fever
+Presentation / Complaints: Acute upper respiratory tract infection, productive cough, fever
 
 --------------------------------------------------------------------------------
 Rx (PRESCRIPTION MEDICINES):
@@ -32,12 +32,6 @@ Rx (PRESCRIPTION MEDICINES):
    Frequency: Once daily, 30 minutes before breakfast
    Duration: 5 days
    Instructions: To protect stomach from acidity.
-
-4. Syp Hydryllin (Cough Syrup)
-   Dose: 2 teaspoonfuls (10 ml)
-   Frequency: 3 times daily after meals
-   Duration: 5 days
-   Instructions: May cause mild drowsiness. Avoid driving immediately after intake.
 
 --------------------------------------------------------------------------------
 GENERAL ADVICE:

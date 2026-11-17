@@ -13,6 +13,10 @@ import {
 } from 'lucide-react';
 import LanguageToggle from './LanguageToggle';
 import { SAMPLE_LAB_REPORT, SAMPLE_PRESCRIPTION } from '../sampleData';
+import { t } from '../i18n';
+
+const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.pdf'];
+const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB
 
 export default function UploadBox({
   onAnalyze,
@@ -56,9 +60,27 @@ export default function UploadBox({
     setErrorMsg(null);
     if (!selected) return;
 
-    // Check size (< 15MB)
-    if (selected.size > 15 * 1024 * 1024) {
-      setErrorMsg('File size must be under 15 MB.');
+    const filename = selected.name.toLowerCase();
+    const ext = filename.slice(filename.lastIndexOf('.'));
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      setErrorMsg(
+        isUrdu
+          ? 'برائے مہربانی صرف PNG، JPG، JPEG، WEBP یا PDF فائل منتخب کریں۔'
+          : language === 'roman_ur'
+          ? 'Sirf PNG, JPG, JPEG, WEBP ya PDF file select karein.'
+          : 'Please select only PNG, JPG, JPEG, WEBP, or PDF files.'
+      );
+      return;
+    }
+
+    if (selected.size > MAX_FILE_SIZE_BYTES) {
+      setErrorMsg(
+        isUrdu
+          ? 'فائل کا سائز 8 ایم بی سے کم ہونا چاہیے۔'
+          : language === 'roman_ur'
+          ? 'File size 8 MB se kam hona chahiye.'
+          : 'File size must be under 8 MB.'
+      );
       return;
     }
 
@@ -100,244 +122,289 @@ export default function UploadBox({
     if (!hasFile && !hasText) {
       setErrorMsg(
         isUrdu
-          ? 'برائے مہربانی کوئی تصویر / پی ڈی ایف فائل اپلوڈ کریں یا رپورٹ کا متن درج کریں۔'
+          ? 'برائے مہربانی دستاویز کی فائل اپلوڈ کریں یا رپورٹ کا متن درج کریں۔'
           : language === 'roman_ur'
-          ? 'Meharbani farma kar file upload karein ya text paste karein.'
-          : 'Please upload a medical report file (image/PDF) or paste the report text.'
+          ? 'Baraye meharbani file upload karein ya text paste karein.'
+          : 'Please provide either a document file or paste the report text.'
       );
       return;
     }
 
-    onAnalyze({ file, text: text.trim(), language });
+    onAnalyze({
+      file,
+      text: text.trim(),
+      language,
+    });
   };
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden" dir={isUrdu ? 'rtl' : 'ltr'}>
-      {/* Top Bar with Language Selector and Tabs */}
-      <div className="bg-slate-50/80 px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-2xl">
-          <button
-            type="button"
-            onClick={() => setActiveTab('upload')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 ${
-              activeTab === 'upload'
-                ? 'bg-white text-emerald-800 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <UploadCloud className="w-4 h-4 text-emerald-600" />
-            <span>{isUrdu ? 'فائل یا تصویر اپلوڈ' : language === 'roman_ur' ? 'File / Photo Upload' : 'Upload File / Photo'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('text')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 ${
-              activeTab === 'text'
-                ? 'bg-white text-emerald-800 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <FileText className="w-4 h-4 text-emerald-600" />
-            <span>{isUrdu ? 'متن لکھیں / پیسٹ کریں' : language === 'roman_ur' ? 'Paste Report Text' : 'Paste Document Text'}</span>
-          </button>
+      {/* Top Header & Language Toggle */}
+      <div className="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className={`text-sm sm:text-base font-bold text-slate-800 ${isUrdu ? 'font-urdu' : ''}`}>
+            {t('appName', language)}
+          </span>
+          <span className="text-xs text-slate-500 hidden sm:inline">• {t('appTagline', language)}</span>
         </div>
 
         <LanguageToggle currentLang={language} onChange={onLanguageChange} />
       </div>
 
-      <div className="p-6 sm:p-8">
-        {/* Error notification banner */}
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 bg-white">
+        <button
+          type="button"
+          onClick={() => setActiveTab('upload')}
+          className={`flex-1 py-3.5 px-4 text-sm sm:text-base font-bold flex items-center justify-center gap-2 transition-colors border-b-2 ${
+            activeTab === 'upload'
+              ? 'border-emerald-600 text-emerald-700 bg-emerald-50/40'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+          } ${isUrdu ? 'font-urdu' : ''}`}
+        >
+          <UploadCloud className="w-5 h-5" />
+          <span>{t('tabUpload', language)}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('text')}
+          className={`flex-1 py-3.5 px-4 text-sm sm:text-base font-bold flex items-center justify-center gap-2 transition-colors border-b-2 ${
+            activeTab === 'text'
+              ? 'border-emerald-600 text-emerald-700 bg-emerald-50/40'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+          } ${isUrdu ? 'font-urdu' : ''}`}
+        >
+          <FileText className="w-5 h-5" />
+          <span>{t('tabPaste', language)}</span>
+        </button>
+      </div>
+
+      {/* Form Content */}
+      <form onSubmit={handleSubmit} className="p-5 sm:p-8">
+        {/* Error Alert */}
         {errorMsg && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-600" />
-            <span>{errorMsg}</span>
+          <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 font-medium">{errorMsg}</div>
+            <button
+              type="button"
+              onClick={() => setErrorMsg(null)}
+              className="text-red-500 hover:text-red-800 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 
-        {/* Tab 1: File Upload */}
+        {/* Tab 1: Upload (File / Camera) */}
         {activeTab === 'upload' && (
-          <div>
-            {!file ? (
-              <div
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all ${
-                  dragActive
-                    ? 'border-emerald-500 bg-emerald-50/50 scale-[1.01]'
-                    : 'border-slate-300 hover:border-emerald-400 bg-slate-50/50'
-                }`}
-              >
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-100/70 text-emerald-700 flex items-center justify-center mb-4 shadow-xs">
-                  <UploadCloud className="w-8 h-8" />
+          <div className="space-y-4">
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => !file && fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-3xl p-6 sm:p-10 text-center transition-all cursor-pointer ${
+                dragActive
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : file
+                  ? 'border-emerald-300 bg-emerald-50/30'
+                  : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp,.pdf,image/png,image/jpeg,image/webp,application/pdf"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleSelectedFile(e.target.files[0])}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleSelectedFile(e.target.files[0])}
+              />
+
+              {!file ? (
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 shadow-inner">
+                    <UploadCloud className="w-8 h-8" />
+                  </div>
+                  <h3 className={`text-base sm:text-lg font-bold text-slate-900 mb-1 ${isUrdu ? 'font-urdu' : ''}`}>
+                    {t('dragDropText', language)}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mb-4">{t('dragDropSub', language)}</p>
+
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition shadow"
+                    >
+                      {isUrdu ? 'فائل براؤز کریں' : 'Browse Files'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cameraInputRef.current?.click();
+                      }}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition shadow"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>{t('cameraButton', language)}</span>
+                    </button>
+                  </div>
                 </div>
-
-                <h3 className={`text-base sm:text-lg font-bold text-slate-800 mb-1 ${isUrdu ? 'font-urdu' : ''}`}>
-                  {isUrdu
-                    ? 'اپنی لیب رپورٹ یا نسخہ کی تصویر یہاں رکھیں'
-                    : language === 'roman_ur'
-                    ? 'Apni report ya prescription yahan drag karein ya browse karein'
-                    : 'Drag & drop your lab report or prescription here'}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 mb-6">
-                  {isUrdu
-                    ? 'JPG، PNG، WEBP یا PDF (زیادہ سے زیادہ 15 ایم بی)'
-                    : 'Supports JPG, PNG, WEBP or PDF (up to 15 MB)'}
-                </p>
-
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition-all flex items-center gap-2"
-                  >
-                    <UploadCloud className="w-4 h-4" />
-                    <span>{isUrdu ? 'فائل منتخب کریں' : 'Browse Files'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-sm font-semibold border border-slate-300 shadow-2xs transition-all flex items-center gap-2"
-                  >
-                    <Camera className="w-4 h-4 text-emerald-600" />
-                    <span>{isUrdu ? 'کیمرہ استعمال کریں' : 'Take Photo'}</span>
-                  </button>
-                </div>
-
-                {/* Hidden Inputs */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={(e) => handleSelectedFile(e.target.files?.[0])}
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => handleSelectedFile(e.target.files?.[0])}
-                />
-              </div>
-            ) : (
-              <div className="border border-emerald-200 bg-emerald-50/40 rounded-3xl p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    {previewUrl ? (
+              ) : (
+                <div className="flex flex-col items-center">
+                  {previewUrl ? (
+                    <div className="relative mb-4">
                       <img
                         src={previewUrl}
-                        alt="Report Preview"
-                        className="w-16 h-16 object-cover rounded-xl border border-emerald-300 shadow-2xs"
+                        alt="Document preview"
+                        className="max-h-48 rounded-xl object-contain shadow-md border border-slate-200"
                       />
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                        <FileCheck className="w-8 h-8" />
-                      </div>
-                    )}
-                    <div>
-                      <h4 className="text-sm sm:text-base font-bold text-slate-900 truncate max-w-xs">
-                        {file.name}
-                      </h4>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {(file.size / 1024).toFixed(1)} KB • {file.type || 'Document'}
-                      </p>
                     </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mb-3 shadow">
+                      <FileCheck className="w-8 h-8" />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-bold text-slate-800 truncate max-w-xs">{file.name}</span>
+                    <span className="text-xs text-slate-500">
+                      ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                    </span>
                   </div>
 
                   <button
                     type="button"
-                    onClick={clearFile}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all"
-                    title="Remove file"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearFile();
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-semibold px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-3.5 h-3.5" />
+                    <span>{t('removeFile', language)}</span>
                   </button>
                 </div>
+              )}
+            </div>
+
+            {/* Quick Synthetic Demo Buttons */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+              <span className={`text-slate-500 font-medium ${isUrdu ? 'font-urdu' : ''}`}>
+                {isUrdu ? 'یا فوری ڈیمو ٹیسٹ آزمائیں:' : 'Or try a synthetic sample:'}
+              </span>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => handleLoadSample('lab')}
+                  className="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 border border-slate-200 transition font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>{t('loadSampleLab', language)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLoadSample('rx')}
+                  className="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 border border-slate-200 transition font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <Pill className="w-4 h-4 text-emerald-600" />
+                  <span>{t('loadSampleRx', language)}</span>
+                </button>
               </div>
-            )}
+            </div>
           </div>
         )}
 
         {/* Tab 2: Paste Text */}
         {activeTab === 'text' && (
-          <div>
-            <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-2">
-              {isUrdu
-                ? 'رپورٹ یا نسخہ کی تحریر درج کریں:'
-                : language === 'roman_ur'
-                ? 'Report ya Dawaiyon ka text yahan paste karein:'
-                : 'Paste Report or Prescription Text:'}
-            </label>
-            <textarea
-              rows={8}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={
-                isUrdu
-                  ? 'یہاں ٹیسٹ کے نتائج لکھیں یا چسپاں کریں، مثال کے طور پر:\nہیموگلوبن: 13.8 (13.0 - 17.0)\nبلڈ شوگر: 184 (70 - 99)...'
-                  : language === 'roman_ur'
-                  ? 'Yahan report ka text likhein, misaal ke taur par:\nHemoglobin: 13.8 (13.0 - 17.0)\nBlood Glucose: 184 (70 - 99)...'
-                  : 'Paste lab values or prescription details, e.g.:\nHemoglobin: 13.8 g/dL (13.0 - 17.0)\nFasting Blood Glucose: 184 mg/dL (70 - 99)...'
-              }
-              className={`w-full p-4 rounded-2xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm font-mono text-slate-800 transition-all ${
-                isUrdu ? 'font-urdu' : ''
-              }`}
-            />
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className={`block text-xs sm:text-sm font-bold text-slate-700 ${isUrdu ? 'font-urdu' : ''}`}>
+                  {t('pasteLabel', language)}
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadSample('lab')}
+                    className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md transition"
+                  >
+                    + {t('loadSampleLab', language)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLoadSample('rx')}
+                    className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md transition"
+                  >
+                    + {t('loadSampleRx', language)}
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={9}
+                dir="auto"
+                placeholder={t('pastePlaceholder', language)}
+                className="w-full p-4 rounded-2xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 font-mono text-xs sm:text-sm text-slate-800 resize-y transition shadow-inner"
+              />
+            </div>
           </div>
         )}
 
-        {/* Synthetic Sample Quick Buttons */}
-        <div className="mt-6 pt-5 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>{isUrdu ? 'نمونہ رپورٹس آزمائیں (ڈیمو کے لیے):' : language === 'roman_ur' ? 'Demo reports try karein:' : 'Try a synthetic demo report:'}</span>
-          </div>
-          <div className="flex flex-wrap gap-2.5">
-            <button
-              type="button"
-              onClick={() => handleLoadSample('lab')}
-              className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200 flex items-center gap-2 transition-all"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-sky-600" />
-              <span>{isUrdu ? 'نمونہ 1: لیب بلڈ ٹیسٹ' : language === 'roman_ur' ? 'Sample 1: Lab Blood Report' : 'Sample 1: Blood Lab Report'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleLoadSample('prescription')}
-              className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 flex items-center gap-2 transition-all"
-            >
-              <Pill className="w-4 h-4 text-emerald-600" />
-              <span>{isUrdu ? 'نمونہ 2: ڈاکٹر کا نسخہ (Rx)' : language === 'roman_ur' ? 'Sample 2: Doctor Prescription' : 'Sample 2: Doctor Prescription'}</span>
-            </button>
-          </div>
-        </div>
-
         {/* Submit Button */}
-        <div className="mt-8 flex justify-end">
+        <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span className={isUrdu ? 'font-urdu' : ''}>
+              {isUrdu
+                ? 'اے آئی چھٹی جماعت کے سادہ الفاظ میں سمجھائے گا اور کوئی تشخیص نہیں کرے گا۔'
+                : language === 'roman_ur'
+                ? 'AI grade-6 ki aasan zuban mein wazahat day ga aur bimari diagnose nahi karega.'
+                : 'Explains in simple Grade-6 language. Never diagnoses.'}
+            </span>
+          </div>
+
           <button
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             disabled={loading}
-            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-base shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all flex items-center justify-center gap-3"
+            className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm sm:text-base shadow-lg shadow-emerald-600/30 hover:shadow-emerald-600/40 transition-all flex items-center justify-center gap-2 ${
+              loading ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
           >
             {loading ? (
               <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>{isUrdu ? 'تجزیہ کیا جا رہا ہے...' : language === 'roman_ur' ? 'Analyze ho raha hai...' : 'Analyzing with Gemini AI...'}</span>
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span className={isUrdu ? 'font-urdu' : ''}>{t('analyzingProgress', language)}</span>
               </>
             ) : (
               <>
-                <span>{isUrdu ? 'رپورٹ کی آسان وضاحت دیکھیں' : language === 'roman_ur' ? 'Aasan Wazahat Dekhein' : 'Explain My Medical Document'}</span>
-                <ArrowRight className="w-5 h-5" />
+                <span className={isUrdu ? 'font-urdu' : ''}>{t('analyzeButton', language)}</span>
+                <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

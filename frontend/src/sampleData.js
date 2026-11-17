@@ -1,32 +1,26 @@
 export const SAMPLE_LAB_REPORT = `================================================================================
                     AL-KHIDMAT DIAGNOSTIC & RESEARCH LABS
-                         (SYNTHETIC SAMPLE REPORT)
+                         (SYNTHETIC DEMO SAMPLE REPORT)
 ================================================================================
 Patient Name: Tariq Mahmood                  Age / Gender: 48 Y / Male
 Patient ID:   AK-2026-98124                  Ref By:       Dr. Sarah Ahmad
 Sample Date:  15-Nov-2026 08:30 AM           Report Date:  15-Nov-2026 02:15 PM
-Specimen:     Whole Blood (EDTA) / Serum
+Specimen:     Whole Blood (EDTA)
 --------------------------------------------------------------------------------
 INVESTIGATION                   RESULT     UNIT         REFERENCE INTERVAL
 --------------------------------------------------------------------------------
 COMPLETE BLOOD COUNT (CBC)
-  Hemoglobin (Hb)               13.8       g/dL         13.0 - 17.0      (Normal)
-  Total Leukocyte Count (TLC)   8,400      /cumm        4,000 - 11,000   (Normal)
-  Platelet Count                245,000    /cumm        150,000 - 450,000 (Normal)
-  Erythrocyte Sed. Rate (ESR)   14         mm/1st hr    0 - 15           (Normal)
-
-CLINICAL CHEMISTRY & METABOLIC
-  Fasting Blood Glucose         184        mg/dL        70 - 99          (HIGH)
-  HbA1c (Glycated Hemoglobin)   8.2        %            4.0 - 5.6        (HIGH)
-  Serum Creatinine              1.0        mg/dL        0.7 - 1.3        (Normal)
-  Serum Cholesterol (Total)     238        mg/dL        < 200            (HIGH)
-  Serum Triglycerides           210        mg/dL        < 150            (HIGH)
-  Serum Potassium               4.4        mmol/L       3.5 - 5.1        (Normal)
+  Hemoglobin (Hb)               6.2        g/dL         13.0 - 17.0      (CRITICALLY LOW)
+  Total Leukocyte Count (TLC)   16,800     /cumm        4,000 - 11,000   (HIGH)
+  Platelet Count                85,000     /cumm        150,000 - 450,000 (LOW)
+  Erythrocyte Sed. Rate (ESR)   42         mm/1st hr    0 - 15           (HIGH)
+  Red Blood Cell (RBC) Count    2.85       mil/cumm     4.50 - 5.50      (LOW)
+  Hematocrit (PCV)              22.0       %            40.0 - 50.0      (LOW)
 --------------------------------------------------------------------------------
 COMMENTS / INTERPRETATION:
-- Elevated Fasting Blood Sugar and HbA1c indicative of suboptimal glycemic control.
-- Moderate hypercholesterolemia noted.
-- Clinical correlation and consultation with physician advised.
+- Marked microcytic hypochromic anemia noted with critical low Hemoglobin (6.2 g/dL).
+- Leukocytosis (elevated TLC) and moderate thrombocytopenia observed.
+- Urgent clinical evaluation and immediate consultation with physician advised.
 --------------------------------------------------------------------------------
 Chief Pathologist: Dr. Khalid Mansoor (MBBS, M.Phil Hematology)
 DISCLAIMER: This is a synthetic demonstration document with fictitious data.
@@ -43,7 +37,7 @@ Date: 16-Nov-2026
 PATIENT INFORMATION:
 Name: Zainab Bibi              Age: 36 Years      Gender: Female
 Weight: 62 kg                  BP: 125/82 mmHg    Temp: 100.4 F
-Diagnosis / Presentation: Acute upper respiratory tract infection, productive cough, fever
+Presentation / Complaints: Acute upper respiratory tract infection, productive cough, fever
 
 --------------------------------------------------------------------------------
 Rx (PRESCRIPTION MEDICINES):
@@ -66,12 +60,6 @@ Rx (PRESCRIPTION MEDICINES):
    Frequency: Once daily, 30 minutes before breakfast
    Duration: 5 days
    Instructions: To protect stomach from acidity.
-
-4. Syp Hydryllin (Cough Syrup)
-   Dose: 2 teaspoonfuls (10 ml)
-   Frequency: 3 times daily after meals
-   Duration: 5 days
-   Instructions: May cause mild drowsiness. Avoid driving immediately after intake.
 
 --------------------------------------------------------------------------------
 GENERAL ADVICE:

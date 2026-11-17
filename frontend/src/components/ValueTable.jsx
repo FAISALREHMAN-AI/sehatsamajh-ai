@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, AlertTriangle, AlertCircle, HelpCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { t } from '../i18n';
 
 export default function ValueTable({ items, language }) {
   if (!items || items.length === 0) return null;
@@ -12,28 +13,28 @@ export default function ValueTable({ items, language }) {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{isUrdu ? 'معمول (درست)' : language === 'roman_ur' ? 'Normal' : 'Normal'}</span>
+            <span>{t('statusNormal', language)}</span>
           </span>
         );
       case 'low':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-amber-100 text-amber-900 border border-amber-300">
             <ArrowDownRight className="w-4 h-4 text-amber-600" />
-            <span>{isUrdu ? 'کم (لو)' : language === 'roman_ur' ? 'Kam (Low)' : 'Low'}</span>
+            <span>{t('statusLow', language)}</span>
           </span>
         );
       case 'high':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-red-100 text-red-900 border border-red-300">
             <ArrowUpRight className="w-4 h-4 text-red-600" />
-            <span>{isUrdu ? 'زیادہ (ہائی)' : language === 'roman_ur' ? 'Ziyada (High)' : 'High'}</span>
+            <span>{t('statusHigh', language)}</span>
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-slate-100 text-slate-700 border border-slate-300">
             <HelpCircle className="w-4 h-4 text-slate-500" />
-            <span>{isUrdu ? 'غیر واضح' : language === 'roman_ur' ? 'Unclear' : 'Unclear'}</span>
+            <span>{t('statusUnclear', language)}</span>
           </span>
         );
     }
@@ -57,18 +58,14 @@ export default function ValueTable({ items, language }) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className={`text-xl sm:text-2xl font-bold text-slate-900 ${isUrdu ? 'font-urdu' : ''}`}>
-            {isUrdu ? 'ٹیسٹ کے نتائج کی تفصیل' : language === 'roman_ur' ? 'Test Results Ki Tafseel' : 'Test Results & Explanations'}
+            {t('tableTitle', language)}
           </h3>
           <p className={`text-xs sm:text-sm text-slate-500 mt-1 ${isUrdu ? 'font-urdu' : ''}`}>
-            {isUrdu
-              ? 'ٹریفک لائٹ اشارے: سبز (معمول)، پیلا (کم)، سرخ (زیادہ)، سرمئی (غیر واضح)'
-              : language === 'roman_ur'
-              ? 'Traffic-light: Sabz (Normal), Peela (Low), Surkh (High), Gray (Ghair wazeh)'
-              : 'Traffic-light visual: Green (Normal), Yellow (Low), Red (High), Slate (Unclear)'}
+            {t('tableLegend', language)}
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg">
-          {items.length} {isUrdu ? 'نتائج' : 'Items'}
+          {items.length} {t('itemsCount', language)}
         </span>
       </div>
 
@@ -83,14 +80,14 @@ export default function ValueTable({ items, language }) {
                 <h4 className="text-base sm:text-lg font-bold text-slate-900">{item.name}</h4>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs sm:text-sm text-slate-600">
                   <span>
-                    <strong className="text-slate-800">{isUrdu ? 'آپ کا نتیجہ:' : 'Patient Value:'} </strong>
+                    <strong className="text-slate-800">{t('patientValue', language)} </strong>
                     <span className="font-mono text-base font-semibold text-slate-950">
                       {item.value} {item.unit}
                     </span>
                   </span>
                   {item.reference_range && (
                     <span className="text-slate-500">
-                      ({isUrdu ? 'نارمل حد:' : 'Reference Range:'} {item.reference_range})
+                      ({t('referenceRange', language)} {item.reference_range})
                     </span>
                   )}
                 </div>
@@ -100,11 +97,11 @@ export default function ValueTable({ items, language }) {
               </div>
             </div>
 
-            <div className="mt-3">
+            <div className="pt-3">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">
+                {isUrdu ? 'آسان وضاحت:' : language === 'roman_ur' ? 'Aasan Wazahat:' : 'Plain Explanation:'}
+              </span>
               <p className={`text-sm sm:text-base text-slate-700 leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
-                <span className="font-semibold text-emerald-800 block mb-0.5">
-                  {isUrdu ? 'آسان وضاحت:' : language === 'roman_ur' ? 'Aasan Wazahat:' : 'Plain Explanation:'}
-                </span>
                 {item.plain_explanation}
               </p>
             </div>

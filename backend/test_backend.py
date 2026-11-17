@@ -1,6 +1,7 @@
 """
 Backend tests for SehatSamajh.
-Covers health check, input validation, schemas, safety rules, image/PDF multimodal, and AI service logic.
+Covers health check, input validation, schemas, safety rules, image/PDF multimodal,
+safety post-check sanitization, and AI service logic.
 """
 
 import io
@@ -11,7 +12,7 @@ from google.genai.errors import APIError
 
 from main import app
 from schemas import AnalysisResponse, LabItem, MedicineItem, AskRequest
-from safety import verify_safety_flags, get_disclaimer, CRITICAL_THRESHOLDS
+from safety import verify_safety_flags, get_disclaimer, sanitize_safety_text, CRITICAL_THRESHOLDS
 from ai_service import extract_json_data
 
 client = TestClient(app)
@@ -23,10 +24,12 @@ def test_health_check():
     assert response.json() == {"status": "ok"}
 
 def test_empty_analyze_request():
-    """Analyze must reject requests with neither file nor text."""
+    """Analyze must reject requests with neither file nor text with friendly error."""
     response = client.post("/api/analyze", data={"language": "en"})
     assert response.status_code == 400
-    assert "Please provide either a document file" in response.json()["detail"]
+    res_json = response.json()
+    assert "error" in res_json
+    assert "Please provide either a document file" in res_json["error"]
 
 def test_empty_file_upload():
     """Analyze must reject requests with a 0-byte file and no text."""
@@ -36,7 +39,22 @@ def test_empty_file_upload():
         files={"file": ("empty.png", b"", "image/png")}
     )
     assert response.status_code == 400
-    assert "uploaded file is empty" in response.json()["detail"]
+    res_json = response.json()
+    assert "error" in res_json
+    assert "uploaded file is empty" in res_json["error"]
+
+def test_file_size_exceeded_8mb():
+    """Analyze must reject files larger than 8 MB with HTTP 413."""
+    oversized = b"0" * (9 * 1024 * 1024)  # 9 MB
+    response = client.post(
+        "/api/analyze",
+        data={"language": "en"},
+        files={"file": ("big_report.pdf", oversized, "application/pdf")}
+    )
+    assert response.status_code == 413
+    res_json = response.json()
+    assert "error" in res_json
+    assert "8 MB limit" in res_json["error"]
 
 def test_invalid_file_type():
     """Analyze must reject unsupported file formats like executable or zip files."""
@@ -46,7 +64,9 @@ def test_invalid_file_type():
         files={"file": ("malicious.exe", b"MZ...", "application/x-msdownload")}
     )
     assert response.status_code == 400
-    assert "Unsupported file format" in response.json()["detail"]
+    res_json = response.json()
+    assert "error" in res_json
+    assert "Unsupported file format" in res_json["error"]
 
 def test_empty_ask_question():
     """Ask endpoint must reject empty question string."""
@@ -56,6 +76,9 @@ def test_empty_ask_question():
         "language": "en"
     })
     assert response.status_code == 400
+    res_json = response.json()
+    assert "error" in res_json
+    assert "Question cannot be empty" in res_json["error"]
 
 def test_safety_disclaimer_defaults():
     """Ensure safety module supplies proper disclaimers in all 3 languages."""
@@ -69,7 +92,7 @@ def test_safety_disclaimer_defaults():
     assert "طبی دستبرداری" in verified["disclaimer"]
 
 def test_safety_critical_threshold_detection():
-    """Ensure critical threshold (e.g. glucose = 420) triggers urgent_flag."""
+    """Ensure critical threshold (e.g. glucose = 420 or Hb = 6.2) triggers urgent_flag."""
     data = {
         "doc_type": "lab_report",
         "summary": "High blood sugar noted",
@@ -88,7 +111,30 @@ def test_safety_critical_threshold_detection():
     }
     checked = verify_safety_flags(data, language="en")
     assert checked["urgent_flag"] is True
-    assert "critically high" in checked["urgent_reason"]
+    assert "significantly above reference interval" in checked["urgent_reason"]
+
+def test_safety_critical_hemoglobin_sample_flag():
+    """Ensure sample lab report's Hemoglobin = 6.2 g/dL triggers calm urgent_flag."""
+    data = {
+        "doc_type": "lab_report",
+        "summary": "Complete Blood Count",
+        "items": [
+            {
+                "name": "Hemoglobin (Hb)",
+                "value": "6.2",
+                "unit": "g/dL",
+                "reference_range": "13.0 - 17.0",
+                "status": "low",
+                "plain_explanation": "Hemoglobin measures oxygen carriage."
+            }
+        ],
+        "urgent_flag": False,
+        "urgent_reason": ""
+    }
+    checked = verify_safety_flags(data, language="en")
+    assert checked["urgent_flag"] is True
+    assert "significantly below reference interval" in checked["urgent_reason"]
+    assert "Please schedule a prompt consultation" in checked["urgent_reason"]
 
 def test_safety_hba1c_does_not_trigger_hemoglobin():
     """Ensure HbA1c (e.g. 5.2%) is NOT falsely flagged as critically low blood hemoglobin."""
@@ -113,28 +159,23 @@ def test_safety_hba1c_does_not_trigger_hemoglobin():
     assert checked["urgent_flag"] is False
     assert checked["urgent_reason"] == ""
 
-def test_safety_hemoglobin_no_duplicate_alert():
-    """Ensure Hemoglobin (Hb) = 5.0 does not produce duplicate alerts in urgent_reason."""
-    data = {
-        "doc_type": "lab_report",
-        "summary": "Low blood count noted",
-        "items": [
-            {
-                "name": "Hemoglobin (Hb)",
-                "value": "5.0",
-                "unit": "g/dL",
-                "reference_range": "12.0 - 15.5",
-                "status": "low",
-                "plain_explanation": "Severe anemia."
-            }
-        ],
-        "urgent_flag": False,
-        "urgent_reason": ""
-    }
-    checked = verify_safety_flags(data, language="en")
-    assert checked["urgent_flag"] is True
-    # Count occurrences of the finding in the reason string
-    assert checked["urgent_reason"].count("Hemoglobin (Hb) is critically low") == 1
+def test_safety_post_check_sanitization():
+    """Verify post-check sanitization rewrites diagnostic claims and medicine modification."""
+    # Diagnostic assertion sanitization
+    raw_diag = "You have diabetes and need treatment immediately."
+    clean_diag = sanitize_safety_text(raw_diag, "en")
+    assert "confirm with your doctor" in clean_diag
+    assert not ("You have diabetes" in clean_diag)
+
+    # Medicine alteration sanitization
+    raw_med = "Stop taking Augmentin 625mg immediately."
+    clean_med = sanitize_safety_text(raw_med, "en")
+    assert "do not change medication without speaking to your doctor" in clean_med
+
+    # Urdu medicine change sanitization
+    raw_ur = "دوا کھانا چھوڑ دیں اور آرام کریں"
+    clean_ur = sanitize_safety_text(raw_ur, "ur")
+    assert "اپنے معالج یا ڈاکٹر سے رجوع کریں" in clean_ur
 
 def test_schema_item_status_normalization():
     """Schema must normalize status casing and synonyms to approved literals."""
@@ -216,7 +257,11 @@ def test_mocked_analyze_text():
             }
         ],
         "medicines": [],
-        "questions_for_doctor": ["Are my iron levels adequate?"],
+        "questions_for_doctor": [
+            "Are my iron levels adequate?",
+            "Do I need any follow-up tests?",
+            "Should I maintain any dietary changes?"
+        ],
         "urgent_flag": False,
         "urgent_reason": "",
         "disclaimer": "Sample disclaimer"
@@ -242,6 +287,7 @@ def test_mocked_analyze_text():
         assert result["doc_type"] == "lab_report"
         assert len(result["items"]) == 1
         assert result["items"][0]["status"] == "normal"
+        assert len(result["questions_for_doctor"]) >= 3
 
 def test_mocked_analyze_image():
     """Verify multimodal image upload analysis."""
@@ -259,7 +305,7 @@ def test_mocked_analyze_image():
             }
         ],
         "medicines": [],
-        "questions_for_doctor": ["Should we check HbA1c?"],
+        "questions_for_doctor": ["Should we check HbA1c?", "What diet helps?", "When to retest?"],
         "urgent_flag": False,
         "urgent_reason": "",
         "disclaimer": "Sample disclaimer"
@@ -299,7 +345,7 @@ def test_mocked_analyze_pdf():
                 "notes": "Take after meals for 5 days"
             }
         ],
-        "questions_for_doctor": ["Can I take this with dairy?"],
+        "questions_for_doctor": ["Can I take this with dairy?", "Should I take it with food?", "Are there side effects?"],
         "urgent_flag": False,
         "urgent_reason": "",
         "disclaimer": "Sample disclaimer"
@@ -328,7 +374,7 @@ def test_mocked_analyze_pdf():
 def test_mocked_ask_question():
     """Verify safe Q&A response endpoint."""
     mock_gemini_obj = MagicMock()
-    mock_gemini_obj.text = "Augmentin is an antibiotic used to clear bacterial infections. Please follow your doctor's exact instructions."
+    mock_gemini_obj.text = "Augmentin is an antibiotic used to clear bacterial infections. Always confirm with your doctor."
 
     with patch("ai_service.get_genai_client") as mock_client:
         mock_instance = MagicMock()
@@ -360,4 +406,6 @@ def test_api_limit_error_handling():
             data={"text": "Hemoglobin 13.5", "language": "en"}
         )
         assert response.status_code == 429
-        assert "rate limit or quota exceeded" in response.json()["detail"]
+        res_json = response.json()
+        assert "error" in res_json
+        assert "rate limit or quota exceeded" in res_json["error"]

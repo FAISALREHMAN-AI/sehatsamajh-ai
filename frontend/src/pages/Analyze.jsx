@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ArrowLeft, HeartPulse, AlertCircle } from 'lucide-react';
+import { ArrowLeft, HeartPulse, AlertCircle, RefreshCw } from 'lucide-react';
 import UploadBox from '../components/UploadBox';
 import { analyzeDocument } from '../api';
 import { SAMPLE_LAB_REPORT, SAMPLE_PRESCRIPTION } from '../sampleData';
+import { t } from '../i18n';
 
 export default function Analyze({
   onNavigate,
@@ -62,14 +63,14 @@ export default function Analyze({
             className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-semibold text-sm transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>{isUrdu ? 'مرکزی صفحہ پر جائیں' : 'Back to Home'}</span>
+            <span className={isUrdu ? 'font-urdu' : ''}>{t('backHome', language)}</span>
           </button>
 
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
               <HeartPulse className="w-5 h-5" />
             </div>
-            <span className="font-bold text-slate-900 text-base">SehatSamajh</span>
+            <span className="font-bold text-slate-900 text-base">{t('appName', language)}</span>
           </div>
         </div>
       </header>
@@ -78,27 +79,21 @@ export default function Analyze({
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1 w-full">
         <div className="text-center mb-8">
           <h2 className={`text-2xl sm:text-4xl font-extrabold text-slate-950 ${isUrdu ? 'font-urdu' : ''}`}>
-            {isUrdu
-              ? 'طبی دستاویز کا جائزہ لیں'
-              : language === 'roman_ur'
-              ? 'Medical Report Ka Jaiza Lein'
-              : 'Analyze Your Medical Document'}
+            {t('analyzeHeading', language)}
           </h2>
           <p className={`mt-2 text-sm sm:text-base text-slate-600 max-w-xl mx-auto ${isUrdu ? 'font-urdu' : ''}`}>
-            {isUrdu
-              ? 'لیب رپورٹ یا ڈاکٹر کے نسخہ کی تصویر اپلوڈ کریں، یا متن درج کریں۔'
-              : language === 'roman_ur'
-              ? 'Photo ya PDF upload karein ya text paste karein.'
-              : 'Upload a clear photo, PDF, or paste text from your lab report or prescription.'}
+            {t('analyzeSubheading', language)}
           </p>
         </div>
 
         {apiError && (
           <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-start gap-3 shadow-sm">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-bold mb-1">Analysis Error</h4>
-              <p>{apiError}</p>
+            <div className="flex-1">
+              <h4 className="font-bold mb-1">
+                {isUrdu ? 'تجزیہ کرنے میں مسئلہ' : 'Analysis Notice'}
+              </h4>
+              <p className="leading-relaxed">{apiError}</p>
             </div>
           </div>
         )}
@@ -113,8 +108,8 @@ export default function Analyze({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
-        SehatSamajh • AI for Accessible Healthcare (UN SDG 3)
+      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+        <p>SehatSamajh • Educational Medical Literacy • Grade-6 Plain Language</p>
       </footer>
     </div>
   );

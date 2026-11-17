@@ -1,212 +1,199 @@
 # SehatSamajh (صحت سمجھ)
 ### AI for Accessible Healthcare & Well-Being (UN SDG 3)
+> **One-Line Pitch**: SehatSamajh translates complex medical reports and prescriptions into simple, empathetic Grade-6 explanations in Urdu, Roman Urdu, and English—with traffic-light indicators, doctor questions, and zero medical jargon.
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4+-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![Gemini](https://img.shields.io/badge/Google%20GenAI-Gemini%20Flash-4285F4.svg?logo=google&logoColor=white)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-19%20Passing-brightgreen.svg)]()
 
 ---
 
 ## 1. Problem Statement
-In Pakistan and across South Asia, millions of patients receive diagnostic lab reports and physician prescriptions that they cannot comprehend. These documents are overwhelmingly written in technical English medical jargon, abbreviated notations, and illegible clinical shorthand. As a result:
-- Patients experience elevated anxiety and confusion regarding test results.
-- Critical findings (e.g., severe hyperglycemia or acute infection) may go unaddressed until complications arise.
-- Patients lack actionable, plain-language questions when meeting their doctors.
-- Language barriers prevent Urdu and Roman Urdu readers from accessing equitable health literacy.
+In Pakistan and across South Asia, millions of patients receive diagnostic lab reports and physician prescriptions that they cannot comprehend. These documents are overwhelmingly written in technical English medical jargon, abbreviated notations (e.g. TLC, ESR, HbA1c, PCV), and illegible clinical shorthand:
+- **Severe Patient Confusion & Anxiety**: Patients cannot determine whether an out-of-range value is a mild deviation or an emergency.
+- **Medication Mismanagement**: Non-English speakers struggle to follow dosage timings, leading to missed doses or premature cessation of antibiotics.
+- **Passive Consultations**: Outpatient clinic visits are rushed, and patients don't know what questions to ask their doctor.
+- **Language Exclusion**: Urdu and Roman Urdu readers lack accessible digital healthcare literacy tools.
 
-**SehatSamajh** addresses **UN Sustainable Development Goal 3 (Good Health and Well-Being)** by translating complex medical documents into simple, empathetic explanations in **Urdu (اردو)**, **Roman Urdu**, and **English** at a 6th-grade reading level.
+**SehatSamajh** directly supports **UN Sustainable Development Goal 3 (Good Health and Well-Being)** by democratizing healthcare comprehension through safe, plain-language AI.
 
 ---
 
 ## 2. Target Users
-1. **Everyday Patients and Caregivers**: Families seeking to understand lab tests (blood counts, lipid profiles, glucose) or prescriptions without medical jargon.
-2. **Urdu and Roman Urdu Speakers**: Users who are more comfortable reading in native Urdu script (with Noto Nastaliq font) or colloquial Roman Urdu.
-3. **Elderly and Low-Literacy Patients**: Users who benefit from the integrated Web Speech API Read-Aloud audio explanation.
-4. **Primary Healthcare Visitors**: Patients preparing for physician consultations who need 2–4 targeted questions to ask their doctor.
+1. **Everyday Patients & Families**: Non-English speakers, elderly family members, and caregivers who need clear, simple guidance about what a medical document means.
+2. **Urdu and Roman Urdu Speakers**: Users who communicate in Urdu script or colloquial Roman Urdu and require healthcare insights in their primary language.
+3. **Patients with Low Literacy**: Users who benefit from large typography, high-contrast traffic-light visual cues, and the Web Speech API read-aloud functionality.
+4. **Primary Care Clinicians & Diagnostic Laboratories**: Labs, clinics, and pharmacies seeking to improve patient adherence, reduce medication errors, and improve doctor-patient dialogue.
 
 ---
 
-## 3. AI Stack & Architecture
-- **Language Model**: Google Gemini Flash (`gemini-2.5-flash` or `gemini-2.0-flash`) via the modern `google-genai` SDK.
-- **Multimodal Perception**: Accepts document photos (JPG, PNG, WEBP, HEIC) and PDF reports directly into Gemini's multimodal vision context.
-- **Structured Validation**: Pydantic v2 schemas enforce typed JSON output containing document classification, summary, lab items with traffic-light status, medicines, doctor questions, and safety flags.
-- **Self-Correction & Retry**: Automatic retry mechanism if the model produces non-compliant JSON.
-- **Frontend**: React 18 (Vite), Tailwind CSS, Lucide icons, responsive mobile-first layout with native RTL support and Noto Nastaliq Urdu typography.
+## 3. Solution & Key Features
+- **Multimodal Upload**: Accepts photos (PNG, JPG, WEBP), scanned PDFs, or pasted medical text up to 8 MB.
+- **Trilingual Accessibility**: Instant one-click toggle between English, Roman Urdu, and Urdu (with native Right-to-Left layout and Google Fonts Noto Nastaliq Urdu typography).
+- **Traffic-Light Results Table**: Green for normal, amber for low, red for high, and grey for unclear—evaluated **strictly** against the printed reference intervals.
+- **Prescription Schedule Guide**: Extracts medicine name, dosage, frequency, general purpose, and important directions (e.g. complete 5-day course, take before breakfast).
+- **Doctor Consultation Questions**: 3 to 5 practical, copyable questions the patient can ask their physician during their visit.
+- **Calm Urgent Alerts**: Highlights critical physiological outliers with a calm, non-alarmist recommendation to consult a doctor soon.
+- **Context-Bounded Follow-up Chat**: Interactive Q&A that answers strictly from the document and politely refuses diagnosis or treatment changes.
+- **Audio Read-Aloud**: Browser-native Web Speech API reader that speaks the summary aloud (hides gracefully if voice is unsupported).
+- **Privacy-First**: No database required; the last analysis is stored securely in browser `localStorage`.
 
 ---
 
-## 4. How the AI is Used
-1. **Document Classification**: Distinguishes between `lab_report`, `prescription`, or `unknown`.
-2. **Biomarker Extraction**: Extracts test names, patient values, units, and printed reference ranges exactly as printed on the document.
-3. **Traffic-Light Grading**: Flags each item as `normal` (green), `high` (amber), `low` (sky), or `unclear` (slate).
-4. **6th-Grade Explanations**: Explains the general role of each biomarker in the body without making diagnostic claims.
-5. **Prescription Breakdown**: Formats medicines, dosages, frequencies, purposes, and important precautions.
-6. **Doctor Question Generation**: Formulates 2–4 concise questions for the patient's next appointment.
-7. **Context-Bounded Follow-up Chat**: A safe Q&A box where users can ask questions about the report. The AI answers strictly from the document context and refuses diagnostic or dosage alteration inquiries.
+## 4. AI Stack & How AI is Used
+- **Multimodal Perception**: Accepts photos and PDFs directly into Google Gemini Flash (`gemini-2.5-flash` or `gemini-2.0-flash`) via the modern `google-genai` SDK using `types.Part.from_bytes`.
+- **Grade-6 Reading Level Enforcement**: System prompts instruct the model to explain medical biomarkers at a 6th-grade reading level.
+- **Printed Reference Range Anchoring**: The model evaluates biomarker status **only** by comparing to the reference range printed on the report. It never invents standard intervals.
+- **Structured Pydantic v2 Validation**: The model is prompted with `response_mime_type="application/json"` and `response_schema=AnalysisResponse`. Output is validated with Pydantic v2.
+- **Automated Self-Correction**: If the model response fails schema validation, the system automatically feeds the validation feedback into a single retry loop before reporting a friendly error.
+- **Safety Post-Check Sanitization**: In `safety.py`, all generated summaries, biomarker explanations, and chat responses are filtered to rewrite or remove diagnostic proclamations (*"You have diabetes"*) or medicine change commands (*"Stop taking medication"*).
 
 ---
 
-## 5. Safety Limits & Ethical Safeguards
-SehatSamajh is engineered with strict clinical safety guardrails:
-- **Strictly Non-Diagnostic**: The AI never tells a patient they "have" a disease or condition. It only describes what the numerical values mean relative to the printed reference interval.
-- **No Medication Changes**: The AI never advises starting, pausing, or changing prescription doses, always emphasizing adherence to the prescribing doctor.
-- **Urgent Value Detection**: An urgent banner is triggered only when critical thresholds are breached (e.g., blood glucose > 350 mg/dL or < 50 mg/dL, severe hemoglobin drop).
-- **Mandatory Medical Disclaimer**: Every response enforces a clear medical disclaimer in the selected language.
-- **Unclear Text Handling**: Blurry, unreadable, or cropped values are designated `unclear` instead of hallucinating.
-- **Audio Read-Aloud**: Browser-native Web Speech API reads the plain summary aloud. The control gracefully hides if the voice is unsupported.
+## 5. System Architecture
 
----
-
-## 6. Startup & Business Model
-SehatSamajh operates a sustainable dual-track model designed for Pakistan's healthcare ecosystem:
-
-### B2B Add-on (Diagnostic Labs, Clinics & Pharmacies)
-- **Lab Patient Portal Widget & API**: Integration into top Pakistani diagnostic networks (e.g., Chughtai Lab, Shaukat Khanum, Excel Labs, Al-Khidmat) to send an automated "Aasan Urdu Explanation" link alongside digital SMS/WhatsApp reports.
-- **Pharmacy & Clinic Tele-Support**: Retail pharmacies (e.g., D.Watson, Fazal Din, Servaid) can print or QR-deliver plain-language medicine schedules to reduce medication errors.
-- **Pricing**: Tiered B2B API subscription based on volume of report interpretations processed per month.
-
-### Freemium for Patients
-- **Free Tier**: Unlimited text paste and basic document analysis in English, Urdu, and Roman Urdu.
-- **Premium Tier**: Digital family health vault, historical trend tracking (e.g., HbA1c over time), medication reminder alerts, and WhatsApp bot integration.
-
----
-
-## 7. Project Folder Structure
-```
-sehatsamajh/
-├── backend/
-│   ├── main.py            # FastAPI app, CORS, routes (/api/health, /api/analyze, /api/ask)
-│   ├── ai_service.py      # Gemini SDK integration, prompts, validation & retry logic
-│   ├── schemas.py         # Pydantic models for structured output & validation
-│   ├── safety.py          # Critical threshold rules and multilingual disclaimers
-│   ├── test_backend.py    # Pytest unit & integration test suite (17 tests)
-│   └── requirements.txt   # Python backend dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Home.jsx       # Hero, value proposition, sample triggers
-│   │   │   ├── Analyze.jsx    # Upload, camera, text paste, language switcher
-│   │   │   └── Result.jsx     # Traffic-light table, urgent banner, chat, speech
-│   │   ├── components/
-│   │   │   ├── UploadBox.jsx       # Drag & drop, camera, paste text, presets
-│   │   │   ├── ValueTable.jsx      # Traffic-light visual cards
-│   │   │   ├── MedicineList.jsx    # Prescription cards & dosage guide
-│   │   │   ├── DoctorQuestions.jsx # One-click copyable questions
-│   │   │   ├── UrgentBanner.jsx    # High-contrast critical alert banner
-│   │   │   ├── ChatBox.jsx         # Context-bounded interactive Q&A
-│   │   │   ├── LanguageToggle.jsx  # Language switch (en, ur, roman_ur)
-│   │   │   └── ReadAloud.jsx       # Web Speech API reader
-│   │   ├── sampleData.js  # Embedded synthetic reports for one-click demo
-│   │   ├── api.js         # Frontend fetch client
-│   │   ├── App.jsx        # Routing, RTL management, localStorage persistence
-│   │   ├── main.jsx       # Entry point
-│   │   └── index.css      # Tailwind directives & Noto Nastaliq styles
-│   ├── package.json
-│   ├── vite.config.js
-│   └── tailwind.config.js
-├── samples/
-│   ├── sample_lab_report.txt       # Synthetic CBC & Metabolic panel
-│   ├── sample_lab_report.png       # Rendered synthetic lab image
-│   ├── sample_prescription.txt     # Synthetic Doctor Rx slip
-│   └── sample_prescription.png     # Rendered synthetic prescription image
-├── .env.example
-├── .gitignore
-└── README.md
+```mermaid
+flowchart TD
+    User([Patient / Caregiver]) -->|Upload Photo / PDF / Paste Text| FE[React + Vite Frontend]
+    FE -->|Language Switch: EN / UR RTL / Roman UR| FE
+    FE -->|Read Aloud: Web Speech API| Audio([Audio Speech Synthesis])
+    FE -->|Cache Last Result| LocalStorage[(Browser LocalStorage)]
+    FE -->|POST /api/analyze & POST /api/ask| FastAPI[FastAPI Backend Server]
+    FastAPI -->|Validate File Type & 8MB Limit| Middleware[FastAPI Exception Handlers]
+    FastAPI -->|Multimodal Stream| GenAI[google-genai SDK]
+    GenAI -->|Structured JSON Request| Gemini[Google Gemini Flash API]
+    Gemini -->|Raw JSON Response| Validation[Pydantic v2 Schema Validator]
+    Validation -->|If JSON Invalid| Retry[Automatic 1-Shot Retry]
+    Validation -->|Validated Dict| Safety[Safety Guard Engine safety.py]
+    Safety -->|Screen Thresholds| Urgent[Urgent Banner Trigger]
+    Safety -->|Post-Check Sanitizer| Clean[Sanitize Diagnosis & Med Changes]
+    Clean -->|Structured JSON Output| FE
 ```
 
+### Text-Based Architecture Flow:
+1. **Frontend (Client)**: User uploads document image/PDF or pastes text, selects language (`en`, `ur`, `roman_ur`).
+2. **API Endpoint (`/api/analyze`)**: FastAPI verifies file constraints (max 8 MB, PNG/JPG/WEBP/PDF).
+3. **AI Service (`ai_service.py`)**: Assembles multimodal parts and system instructions. Calls Gemini Flash with structured schema.
+4. **Validation & Retry**: Pydantic v2 parses the JSON. Retries once if validation fails.
+5. **Safety Engine (`safety.py`)**: Enforces multilingual disclaimer, verifies critical physiological thresholds, and runs post-check regex sanitizers.
+6. **Delivery**: Structured JSON is rendered in high-contrast traffic-light cards and cached to `localStorage`.
+
 ---
 
-## 8. Setup & Running the Application
+## 6. Safety Limits & What It Is NOT
+**SehatSamajh is strictly an educational health literacy tool.**
+- **NOT a Diagnostic Tool**: It does not diagnose medical diseases, infections, or syndromes.
+- **NOT Clinically Validated**: It is an exploratory prototype designed for health communication, not a certified clinical decision support system.
+- **NOT Medication Advice**: It never advises starting, pausing, altering, or stopping medications.
+- **Mandatory Medical Disclaimer**: Every single response in all three languages concludes with a clear instruction: **Always confirm with your doctor**.
+- **Unclear / Unrelated Documents**: If an image is blurred or unrelated to healthcare, the system returns status `unclear` and document type `unknown` rather than guessing.
+
+---
+
+## 7. Startup & Sustainability Model
+> *Note: The business model below is an early hypothesis to be validated through structured pilot partnerships with local diagnostic centers.*
+
+### B2B Add-On Model (Primary Revenue)
+- **Diagnostic Laboratories (Chughtai Lab, Excel Labs, Shaukat Khanum, Essa, Al-Khidmat)**: Pathology labs in Pakistan deliver millions of PDF reports via SMS/WhatsApp links every month. SehatSamajh can be offered as a white-labeled value-added service (an "Aasan Urdu Summary" link alongside the raw PDF) billed on a monthly tier or micro-fee per report.
+- **Retail Pharmacy Chains (D.Watson, Fazal Din, Servaid)**: Pharmacies license our plain-language prescription schedule generator at points of sale to print or SMS clear instructions to patients, reducing dosage errors.
+
+### Patient Freemium Tier
+- **Free Patient Tier**: Patients can always paste text and upload documents for free on the public web app.
+- **Future Premium Tier**: Family health vault, longitudinal biomarker trend tracking (e.g. HbA1c over 12 months), and WhatsApp bot access.
+
+---
+
+## 8. Setup & Installation Steps
 
 ### Prerequisites
-- Python 3.10+ (tested on Python 3.14)
-- Node.js 18+ (tested on Node.js v22)
-- Google Gemini API Key ([Get one free from Google AI Studio](https://aistudio.google.com/))
+- Python 3.11+
+- Node.js 18+ and npm
+- A Google Gemini API Key ([Get one free at Google AI Studio](https://aistudio.google.com/))
 
-### 1. Configure Environment Variables
-Copy `.env.example` to `.env` in the project root:
+### Step 1: Clone Repository
 ```bash
+git clone https://github.com/FAISALREHMAN-AI/sehatsamajh-ai.git
+cd sehatsamajh-ai
+```
+
+### Step 2: Backend Setup
+```bash
+cd backend
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
 cp .env.example .env
 ```
-Open `.env` and set your Gemini API key:
+Edit `.env` and set your Gemini API key:
 ```env
 GEMINI_API_KEY=your_actual_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
-PORT=8000
 HOST=0.0.0.0
+PORT=8000
 ```
-
-### 2. Start the Backend Server
+Run backend tests to verify:
 ```bash
-cd backend
-pip install -r requirements.txt
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+python -m pytest -v
 ```
-Verify the backend is live:
+Start the backend server:
 ```bash
-curl http://127.0.0.1:8000/api/health
-# Response: {"status":"ok"}
+uvicorn main:app --reload --port 8000
 ```
+Backend will be live at `http://localhost:8000` (Health check: `http://localhost:8000/api/health`).
 
-To run the backend test suite:
-```bash
-cd backend
-pytest -v
-```
-
-### 3. Start the Frontend Application
-In a separate terminal:
+### Step 3: Frontend Setup
+Open a new terminal:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open your browser and navigate to **`http://localhost:5173`**.
+Frontend will be live at `http://localhost:5173`.
 
 ---
 
-## 9. Demo Walkthrough Steps
-
-1. **Visit Home Screen**:
-   - View the UN SDG 3 health literacy value proposition.
-   - Click **"Try a Sample Report"** or **"Upload Medical Document"**.
-
-2. **Test Synthetic Lab Report**:
-   - In the Analyze screen, click the **"Sample 1: Blood Lab Report"** quick button.
-   - Toggle language between **English**, **Roman Urdu**, and **اردو** (notice how Urdu switches to right-to-left layout and applies the Noto Nastaliq Urdu font).
-   - Click **"Explain My Medical Document"**.
-   - Review the **Traffic-Light table** showing normal, high (elevated fasting blood sugar & cholesterol), and grade-6 explanations.
-
-3. **Test Synthetic Prescription**:
-   - Return to Analyze and click **"Sample 2: Doctor Prescription"**.
-   - Click **"Explain My Medical Document"**.
-   - Review the **Medicine Guide** with Augmentin, Panadol, Risek, and Hydryllin, with dosage timings, purposes, and precautions.
-   - Review **Questions to Ask Your Doctor** and use the one-click copy button.
-
-4. **Test Multimodal Upload**:
-   - Drag and drop `samples/sample_lab_report.png` or `samples/sample_prescription.png` into the upload zone.
-   - Run the analysis to verify multimodal image vision extraction.
-
-5. **Test Safe Follow-Up Chat**:
-   - Type a question in the chat box: *"What should I ask my doctor about my blood sugar?"*
-   - Test safety boundaries by asking: *"Do I have diabetes?"* or *"Can I stop taking Augmentin?"*
-   - Verify that SehatSamajh politely refuses diagnosis and advises consulting a healthcare professional.
-
-6. **Test Audio Read-Aloud**:
-   - Click the **"Play"** button on the summary card to hear the Web Speech API read the summary.
-
-7. **Test Error Handling**:
-   - Try submitting without any file or text, or upload an unsupported file (e.g. `.exe` or `.zip`).
-   - Notice the friendly, descriptive error messages that prevent app crashes.
+## 9. Environment Variables
+| Variable | Description | Default | Location |
+| :--- | :--- | :--- | :--- |
+| `GEMINI_API_KEY` | Google Gemini API key from AI Studio | *Required* | Backend `.env` |
+| `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash` | Backend `.env` |
+| `HOST` | Backend server host | `0.0.0.0` | Backend `.env` |
+| `PORT` | Backend server port | `8000` | Backend `.env` |
+| `VITE_API_URL` | Base URL of the FastAPI backend | `http://localhost:8000` | Frontend `.env` (optional) |
 
 ---
 
-## 10. Acceptance Verification Summary
-- **Synthetic Lab Report**: Fully validated with live extraction and traffic-light classification.
-- **Synthetic Prescription**: Extracted medicines with doses, schedule, and precautions.
-- **Multilingual Support**: English, Urdu (RTL + Noto Nastaliq Urdu), and Roman Urdu.
-- **No Hard-Coded AI**: Integrates directly with Google Gemini Flash.
-- **No Secrets in Repo**: `.env` is gitignored; `.env.example` provided.
-- **Safety Tested**: 17 automated Pytest unit and integration tests passing.
+## 10. How to Run the Demo
+1. Open `http://localhost:5173` in your browser.
+2. Click **"Try Sample Lab Report"** on the home screen.
+3. Click **"Analyze Document Now"** to run the live AI analysis on the synthetic CBC sample.
+4. Observe the **Urgent Banner** triggered by the critically low hemoglobin (6.2 g/dL), the **traffic-light table**, **3-5 doctor questions**, and the **audio Read-Aloud** button.
+5. Click **"Analyze Another"**, toggle the language to **اردو**, load the **Sample Prescription (3 medicines)**, and observe the full RTL Urdu experience.
+6. In the **Chat Box**, ask a question (e.g. *"Can I stop taking Augmentin once my fever goes down?"*) and observe the safe non-prescriptive response.
+
+For complete click-by-click instructions, refer to [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).  
+For the 6-minute presentation script, refer to [docs/PITCH.md](docs/PITCH.md).  
+For the detailed technical report, refer to [docs/REPORT.md](docs/REPORT.md).
+
+---
+
+## 11. Assumptions
+1. **Document Legibility**: The model assumes printed or reasonably legible handwritten text. If handwriting is unreadable, it explicitly assigns `status: "unclear"`.
+2. **Reference Ranges**: We assume diagnostic documents include printed reference intervals. If absent, the AI will not guess ranges.
+3. **No Central Database**: To maximize user privacy and minimize compliance exposure, patient data is kept strictly client-side in `localStorage`.
+4. **Language Fallback**: If a user's browser lacks an Urdu text-to-speech voice pack, the Web Speech Read-Aloud button gracefully hides without breaking the UI.
+
+---
+
+## 12. Future Work & Roadmap
+1. **Zero-Retention Encrypted Pipeline**: Automated on-device PII masking (blurring patient names and phone numbers prior to LLM transmission).
+2. **Clinical Validation Pilots**: Formal trials with teaching hospitals in Pakistan to evaluate health comprehension scores in outpatient waiting rooms.
+3. **Additional Regional Languages**: Integration of Punjabi (Shahmukhi/Gurmukhi), Sindhi, Pashto, and Balochi.
+4. **WhatsApp Bot Integration**: Enabling rural users to photograph reports and receive voice note explanations over low-bandwidth WhatsApp.

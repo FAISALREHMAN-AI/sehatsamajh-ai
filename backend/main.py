@@ -1,15 +1,16 @@
 """
 FastAPI application for SehatSamajh.
 Provides healthcare document analysis and patient Q&A endpoints.
+Adheres strictly to the API contract and returns standard JSON error responses.
 """
 
 import os
 import logging
-from contextlib import asynccontextmanager
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from google.genai.errors import APIError
@@ -18,7 +19,7 @@ from google.genai.errors import APIError
 load_dotenv()
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-from schemas import AnalysisResponse, AskRequest, AskResponse, HealthResponse, Language
+from schemas import AnalysisResponse, AskRequest, AskResponse, HealthResponse
 from ai_service import analyze_document, answer_question
 
 # Setup logging
@@ -34,7 +35,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration for local React dev server and production clients
+# CORS configuration for local React dev server and client environments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,20 +44,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Allowed file formats: only png, jpg, jpeg, webp, pdf
 ALLOWED_MIME_TYPES = {
     "image/jpeg",
     "image/jpg",
     "image/png",
     "image/webp",
-    "image/heic",
     "application/pdf"
 }
 
-MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB limit
+ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".pdf"}
+
+# 8 MB file size limit as per specification
+MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024
+
+# ---------------------------------------------------------------------------
+# Global Exception Handlers for Standardized {"error": "..."} responses
+# ---------------------------------------------------------------------------
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    """Ensure all HTTP exceptions return structured {"error": "...", "detail": "..."}."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail, "detail": exc.detail}
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Ensure validation errors return friendly JSON error."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": "Invalid request parameters provided.",
+            "detail": str(exc)
+        }
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """Catch-all handler ensuring server never crashes on unhandled errors."""
+    logger.exception(f"Unhandled error processing request {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "An unexpected server error occurred. Please try again.",
+            "detail": str(exc)
+        }
+    )
+
+# ---------------------------------------------------------------------------
+# API Routes
+# ---------------------------------------------------------------------------
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint confirming API service is running."""
+    """Health check endpoint strictly returning {"status": "ok"}."""
     return HealthResponse(status="ok")
 
 @app.post("/api/analyze", response_model=AnalysisResponse)
@@ -67,13 +110,14 @@ async def analyze_report(
 ):
     """
     Analyzes uploaded medical report (image/PDF) or pasted text.
+    Validates file formats (png, jpg, jpeg, webp, pdf) and size (max 8 MB).
     Returns structured grade-6 explanation in English, Urdu, or Roman Urdu.
     """
-    # Validate language
+    # Normalize and validate language
     if language not in ("en", "ur", "roman_ur"):
         language = "en"
 
-    # Validate input presence
+    # Require at least one of file or text
     has_text = bool(text and text.strip())
     has_file = file is not None and bool(file.filename)
 
@@ -87,23 +131,32 @@ async def analyze_report(
     mime_type: Optional[str] = None
 
     if has_file and file:
-        content_type = file.content_type or ""
-        # Handle some mobile browsers sending generic octet-stream with image extensions
         filename = (file.filename or "").lower()
-        if content_type == "application/octet-stream":
-            if filename.endswith((".jpg", ".jpeg")):
+        extension = os.path.splitext(filename)[1].lower()
+
+        # Check extension against allowed list
+        if extension not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file format '{extension}'. Please upload only PNG, JPG, JPEG, WEBP, or PDF files."
+            )
+
+        content_type = file.content_type or ""
+        # Handle mobile octet-stream MIME types with valid extensions
+        if content_type == "application/octet-stream" or not content_type:
+            if extension in (".jpg", ".jpeg"):
                 content_type = "image/jpeg"
-            elif filename.endswith(".png"):
+            elif extension == ".png":
                 content_type = "image/png"
-            elif filename.endswith(".webp"):
+            elif extension == ".webp":
                 content_type = "image/webp"
-            elif filename.endswith(".pdf"):
+            elif extension == ".pdf":
                 content_type = "application/pdf"
 
         if content_type not in ALLOWED_MIME_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported file format '{content_type}'. Please upload a clear photo (JPG, PNG, WEBP) or a PDF."
+                detail=f"Unsupported file format '{content_type}'. Please upload only PNG, JPG, JPEG, WEBP, or PDF files."
             )
 
         file_bytes = await file.read()
@@ -111,14 +164,14 @@ async def analyze_report(
             if not has_text:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="The uploaded file is empty. Please upload a valid medical report file or paste the text."
+                    detail="The uploaded file is empty. Please upload a valid document or paste text."
                 )
             file_bytes = None
             mime_type = None
         elif len(file_bytes) > MAX_FILE_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="File size exceeds the 15 MB limit. Please upload a smaller image or document."
+                detail="File size exceeds the 8 MB limit. Please upload a smaller image or PDF."
             )
         else:
             mime_type = content_type
@@ -133,7 +186,7 @@ async def analyze_report(
         return result
     except ValueError as ve:
         err_msg = str(ve)
-        logger.warning(f"Validation or configuration error: {err_msg}")
+        logger.warning(f"Configuration or validation error: {err_msg}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=err_msg
@@ -150,6 +203,8 @@ async def analyze_report(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Google Gemini AI service error: {str(api_err)}"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unexpected error processing document analysis")
         raise HTTPException(
@@ -189,6 +244,8 @@ async def ask_question_endpoint(req: AskRequest):
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Google Gemini AI service error: {str(api_err)}"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Error answering follow-up question")
         raise HTTPException(

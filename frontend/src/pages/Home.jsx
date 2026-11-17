@@ -12,6 +12,7 @@ import {
   Clock,
 } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
+import { t } from '../i18n';
 
 export default function Home({ onNavigate, language, onLanguageChange, hasSavedResult = false }) {
   const isUrdu = language === 'ur';
@@ -27,10 +28,10 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                <span>صحت</span>
-                <span className="text-emerald-600">سمجھ</span>
+                <span>{isUrdu ? 'صحت' : 'Sehat'}</span>
+                <span className="text-emerald-600">{isUrdu ? 'سمجھ' : 'Samajh'}</span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 ml-1">
-                  SehatSamajh
+                  AI
                 </span>
               </h1>
             </div>
@@ -45,7 +46,7 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
         {/* SDG 3 Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold mb-6 shadow-2xs">
           <Sparkles className="w-4 h-4 text-emerald-600" />
-          <span>AI for Accessible Healthcare & Well-Being (UN SDG 3)</span>
+          <span>{t('sdgBadge', language)}</span>
         </div>
 
         {/* Main Headline */}
@@ -54,13 +55,8 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
             isUrdu ? 'font-urdu leading-normal' : ''
           }`}
         >
-          {isUrdu ? (
-            <>اپنی میڈیکل رپورٹس اور نسخہ جات کو <span className="text-emerald-600">آسان اردو</span> میں سمجھیں</>
-          ) : language === 'roman_ur' ? (
-            <>Apni medical reports aur prescription ko <span className="text-emerald-600">Aasan Roman Urdu</span> mein samjhein</>
-          ) : (
-            <>Understand your medical reports and prescriptions in <span className="text-emerald-600">simple, everyday language</span></>
-          )}
+          {t('heroTitle', language)}{' '}
+          <span className="text-emerald-600">{t('heroTitleHighlight', language)}</span>
         </h2>
 
         {/* One-line Value Proposition */}
@@ -69,11 +65,7 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
             isUrdu ? 'font-urdu' : ''
           }`}
         >
-          {isUrdu
-            ? 'پیچیدہ طبی اصطلاحات اور انگریزی رپورٹس کی آسان الفاظ میں وضاحت حاصل کریں۔ کوئی طبی تشخیص نہیں، صرف بہتر آگاہی۔'
-            : language === 'roman_ur'
-            ? 'Mushkil lab reports aur doctor ke nuskhe ki aasan wazahat hasil karein. Koi bimari diagnose nahi, sirf behtar samajh.'
-            : 'Turn complex medical jargon into clear, 6th-grade explanations in Urdu, Roman Urdu, or English. Strictly educational and non-diagnostic.'}
+          {t('heroSubtitle', language)}
         </p>
 
         {/* Action Buttons */}
@@ -83,7 +75,7 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
             onClick={() => onNavigate('analyze')}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base sm:text-lg shadow-xl shadow-emerald-600/25 hover:shadow-emerald-600/35 transition-all flex items-center justify-center gap-3"
           >
-            <span>{isUrdu ? 'اپنی رپورٹ اپلوڈ کریں' : language === 'roman_ur' ? 'Report Upload Karein' : 'Upload Medical Document'}</span>
+            <span>{t('ctaUpload', language)}</span>
             <ArrowRight className="w-5 h-5" />
           </button>
 
@@ -93,76 +85,98 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
             className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-base sm:text-lg border border-slate-300 shadow-sm transition-all flex items-center justify-center gap-2"
           >
             <Sparkles className="w-5 h-5 text-amber-500" />
-            <span>{isUrdu ? 'ڈیمو رپورٹ آزمائیں' : language === 'roman_ur' ? 'Sample Report Try Karein' : 'Try a Sample Report'}</span>
+            <span>{t('ctaSampleLab', language)}</span>
           </button>
 
           {hasSavedResult && (
             <button
               type="button"
               onClick={() => onNavigate('result')}
-              className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-base border border-emerald-300 shadow-sm transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-base border border-emerald-200 transition-all"
             >
-              <Clock className="w-5 h-5 text-emerald-600" />
-              <span>{isUrdu ? 'پچھلا نتیجہ دیکھیں' : language === 'roman_ur' ? 'Pichla Result Dekhein' : 'View Last Result'}</span>
+              {t('viewSaved', language)}
             </button>
           )}
         </div>
 
-        {/* Value Highlights */}
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 w-full text-left" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
-              <Languages className="w-6 h-6" />
-            </div>
-            <h3 className={`font-bold text-slate-900 text-lg mb-1 ${isUrdu ? 'font-urdu' : ''}`}>
-              {isUrdu ? 'اردو اور رومن اردو' : 'Native Language Support'}
+        {/* 3-Step "How It Works" Section */}
+        <section className="mt-20 sm:mt-24 w-full max-w-4xl text-left border-t border-slate-200/80 pt-16">
+          <div className="text-center mb-10">
+            <span className="text-xs uppercase font-extrabold tracking-widest text-emerald-600 block mb-1">
+              Workflow
+            </span>
+            <h3 className={`text-2xl sm:text-3xl font-extrabold text-slate-900 ${isUrdu ? 'font-urdu' : ''}`}>
+              {t('howItWorksTitle', language)}
             </h3>
-            <p className={`text-slate-600 text-sm leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
-              {isUrdu
-                ? 'عام پاکستانی مریض کے فہم کے مطابق آسان الفاظ اور نستعلیق فونٹ۔'
-                : 'Available in Urdu (اردو), Roman Urdu, and English for maximum inclusivity.'}
-            </p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-4">
-              <Activity className="w-6 h-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Step 1 */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow transition-shadow">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
+                <FileText className="w-6 h-6" />
+              </div>
+              <h4 className={`text-lg font-bold text-slate-900 mb-2 ${isUrdu ? 'font-urdu' : ''}`}>
+                {t('step1Title', language)}
+              </h4>
+              <p className={`text-sm text-slate-600 leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
+                {t('step1Desc', language)}
+              </p>
             </div>
-            <h3 className={`font-bold text-slate-900 text-lg mb-1 ${isUrdu ? 'font-urdu' : ''}`}>
-              {isUrdu ? 'ٹریفک لائٹ اشارے' : 'Traffic-Light Visuals'}
-            </h3>
-            <p className={`text-slate-600 text-sm leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
-              {isUrdu
-                ? 'سبز، پیلا اور سرخ رنگوں سے فوری اندازہ لگائیں کہ کون سا نتیجہ معمول کے مطابق ہے۔'
-                : 'Green (Normal), Yellow (Low), and Red (High) cards based strictly on the printed reference range.'}
-            </p>
-          </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
-              <ShieldCheck className="w-6 h-6" />
+            {/* Step 2 */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow transition-shadow">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
+                <Languages className="w-6 h-6" />
+              </div>
+              <h4 className={`text-lg font-bold text-slate-900 mb-2 ${isUrdu ? 'font-urdu' : ''}`}>
+                {t('step2Title', language)}
+              </h4>
+              <p className={`text-sm text-slate-600 leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
+                {t('step2Desc', language)}
+              </p>
             </div>
-            <h3 className={`font-bold text-slate-900 text-lg mb-1 ${isUrdu ? 'font-urdu' : ''}`}>
-              {isUrdu ? 'محفوظ اور غیر تشخیصی' : 'Ethical & Non-Diagnostic'}
-            </h3>
-            <p className={`text-slate-600 text-sm leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
-              {isUrdu
-                ? 'ہم کبھی کوئی بیماری تشخیص نہیں کرتے اور ہمیشہ ڈاکٹر سے تصدیق کا مشورہ دیتے ہیں۔'
-                : 'Strict ethical guardrails prevent medical diagnosis and advise consulting your doctor.'}
+
+            {/* Step 3 */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow transition-shadow">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
+                <Stethoscope className="w-6 h-6" />
+              </div>
+              <h4 className={`text-lg font-bold text-slate-900 mb-2 ${isUrdu ? 'font-urdu' : ''}`}>
+                {t('step3Title', language)}
+              </h4>
+              <p className={`text-sm text-slate-600 leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
+                {t('step3Desc', language)}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Safety Note */}
+        <section className="mt-14 w-full max-w-3xl bg-amber-50/80 border border-amber-200 rounded-3xl p-6 flex items-start gap-4 text-left">
+          <div className="p-2.5 bg-amber-100 rounded-2xl text-amber-700 flex-shrink-0">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className={`text-sm sm:text-base font-bold text-amber-950 mb-1 ${isUrdu ? 'font-urdu' : ''}`}>
+              {isUrdu ? 'طبی حفاظت کی ضمانت (غیر تشخیصی)' : 'Patient Safety First (Strictly Non-Diagnostic)'}
+            </h4>
+            <p className={`text-xs sm:text-sm text-amber-900 leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
+              {t('disclaimerText', language)}
             </p>
           </div>
-        </div>
+        </section>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-6">
-        <div className="max-w-6xl mx-auto px-4 text-center text-xs text-slate-500">
-          <p>
-            SehatSamajh • Built for AI for Accessible Healthcare & Well-Being Hackathon (UN SDG 3)
-          </p>
-          <p className="mt-1 text-slate-400">
-            For educational understanding only. Always verify with your registered medical doctor.
-          </p>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <p>© 2026 SehatSamajh. Built for UN Sustainable Development Goal 3 (Good Health & Well-Being).</p>
+          <div className="flex items-center gap-4">
+            <span>Urdu • Roman Urdu • English</span>
+            <span>•</span>
+            <span>Powered by Gemini Multimodal</span>
+          </div>
         </div>
       </footer>
     </div>

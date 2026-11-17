@@ -1,8 +1,15 @@
 /**
  * API client for SehatSamajh backend.
+ * Reads API base URL from VITE_API_URL (default http://localhost:8000).
  */
 
-const API_BASE = '/api';
+const getApiBase = () => {
+  const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const cleanUrl = envUrl.replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+
+const API_BASE = getApiBase();
 
 export async function checkHealth() {
   const res = await fetch(`${API_BASE}/health`);
@@ -38,13 +45,13 @@ export async function analyzeDocument({ file, text, language = 'en' }) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      const errorMsg = data.detail || `Server returned error (${res.status})`;
+      const errorMsg = data.error || data.detail || `Server returned error (${res.status})`;
       throw new Error(errorMsg);
     }
 
     return data;
   } catch (err) {
-    if (err.message && err.message.includes('Failed to fetch')) {
+    if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
       throw new Error('Could not connect to backend server. Make sure the backend is running on port 8000.');
     }
     throw err;
@@ -75,13 +82,13 @@ export async function askQuestion({ context, question, language = 'en' }) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      const errorMsg = data.detail || `Server returned error (${res.status})`;
+      const errorMsg = data.error || data.detail || `Server returned error (${res.status})`;
       throw new Error(errorMsg);
     }
 
     return data;
   } catch (err) {
-    if (err.message && err.message.includes('Failed to fetch')) {
+    if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
       throw new Error('Could not connect to backend server. Make sure the backend is running.');
     }
     throw err;

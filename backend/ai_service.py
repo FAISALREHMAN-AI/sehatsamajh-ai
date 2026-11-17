@@ -1,67 +1,69 @@
 """
 AI Service for SehatSamajh using google-genai SDK.
-Handles document analysis (text, image, PDF) and safe conversational Q&A.
+Handles multimodal document analysis (text, image, PDF) and safe conversational Q&A.
+Strictly adheres to grade-6 readability, non-diagnostic guidelines, and safety post-checks.
 """
 
 import os
 import re
 import json
 import logging
-from typing import Optional, Tuple, Any, Dict
+from typing import Optional, Any, Dict
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 from pydantic import ValidationError
 
-from schemas import AnalysisResponse, DocType, ItemStatus, AskRequest, AskResponse
-from safety import verify_safety_flags, get_disclaimer
+from schemas import AnalysisResponse, AskRequest, AskResponse
+from safety import verify_safety_flags, sanitize_safety_text
 
 logger = logging.getLogger(__name__)
 
-# Model configuration from environment
+# Model configuration from environment with default
 DEFAULT_MODEL = "gemini-2.5-flash"
 
 def get_model_name() -> str:
+    """Read model from GEMINI_MODEL env var with a modern flash default."""
     return os.getenv("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
 def get_genai_client() -> genai.Client:
+    """Initialize google-genai Client using environment variable."""
     api_key = os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
     if not api_key:
         raise ValueError(
-            "GEMINI_API_KEY is not configured. Please add GEMINI_API_KEY to your .env file or environment variables."
+            "GEMINI_API_KEY is not configured. Please set GEMINI_API_KEY in your .env file or environment."
         )
     return genai.Client(api_key=api_key)
 
 LANGUAGE_INSTRUCTIONS = {
-    "en": "Respond strictly in simple, easy-to-read English (Grade 6 level).",
-    "ur": "Respond strictly in simple everyday Urdu (اردو script) at a 6th-grade comprehension level that common Pakistani patients easily understand. Do not use overly complicated Persian or Arabic medical vocabulary.",
-    "roman_ur": "Respond strictly in simple Roman Urdu (Urdu written in English alphabet, e.g., 'Yeh khoon ka test hai...'). Write clearly so an ordinary Pakistani speaker can easily read and understand."
+    "en": "Respond strictly in simple, clear English at about a Grade 6 reading level for an everyday patient.",
+    "ur": "Respond strictly in simple, everyday Urdu (اردو script) at a 6th-grade comprehension level that common Pakistani patients easily understand. Do not use overly complicated archaic vocabulary.",
+    "roman_ur": "Respond strictly in simple Roman Urdu (Urdu written in English script, e.g., 'Yeh khoon ka test hai...'). Keep the tone friendly and easy for an ordinary Pakistani reader."
 }
 
 def build_analysis_system_prompt(language: str) -> str:
     lang_rule = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["en"])
-    return f"""You are SehatSamajh, an AI healthcare literacy assistant created for Pakistan to help everyday patients understand their lab reports and doctor prescriptions.
+    return f"""You are SehatSamajh, an AI healthcare literacy assistant created for Pakistan to help everyday patients understand their lab reports and prescriptions.
 
 CORE ETHICAL & SAFETY DIRECTIVES:
-1. Grade-6 Reading Level: Explain terms in plain, conversational language. Avoid dense medical jargon.
-2. NEVER DIAGNOSE: You explain what tests and numbers mean generally in a healthy body. Never tell the patient 'You have diabetes' or 'You suffer from an infection'. Instead say: 'This test checks blood sugar levels.'
-3. NEVER ALTER MEDICINE: Never advise changing, increasing, or stopping any medication. Always emphasize following the doctor's prescription.
-4. EXACT VALUES & REFERENCE RANGES: Extract numbers and units exactly as printed on the document. Compare values ONLY with the reference range printed on the report itself. DO NOT invent or assume standard ranges if not provided on the sheet.
-5. UNCLEAR OR UNREADABLE: If handwritten text, values, or names are blurry, cropped, stained, or illegible, set status to 'unclear' and note in plain_explanation that it could not be read clearly. NEVER guess.
-6. URGENT FLAGS: Set 'urgent_flag' to true ONLY if a value is critically, dangerously far outside the printed range (e.g. extremely dangerous blood sugar, severe anemia, dangerously high potassium), and explain in 'urgent_reason' why prompt medical review is necessary. If no urgent finding, set urgent_flag to false and urgent_reason to "".
-7. LANGUAGE: {lang_rule}
-8. DOCUMENT CLASSIFICATION:
-   - 'lab_report': If the document is a laboratory blood test, urine test, imaging report, or pathology test.
-   - 'prescription': If the document is a doctor's prescription, Rx slip, list of medicines, dosage instructions.
-   - 'unknown': If neither or unidentifiable.
+1. GRADE-6 READING LEVEL: Explain every medical term in plain, conversational language at approximately a 6th-grade reading level. Avoid dense jargon.
+2. NEVER DIAGNOSE: You explain what markers and numbers generally measure in human biology and what high or low generally means. NEVER state clinical claims or diagnoses as facts about this person (never say 'You have diabetes', 'You have an infection'). Always conclude summaries and explanations with a reminder to confirm with your doctor.
+3. NEVER ALTER MEDICINE: Never advise starting, changing, increasing, or stopping any medication. Always emphasize adhering to the prescribing doctor.
+4. EXACT VALUES & PRINTED REFERENCE RANGES: Extract test values and units exactly as printed on the document. Determine status ('normal', 'high', 'low', 'unclear') ONLY by comparing with the printed reference interval on the document itself. DO NOT invent, assume, or guess standard ranges if none are printed.
+5. UNREADABLE OR UNRELATED INPUT: If the input is unreadable, blurry, corrupted, or completely unrelated to healthcare (e.g. a landscape, invoice, random object), set doc_type to 'unknown', items to [], medicines to [], status to 'unclear', and provide a polite summary stating that this document cannot be identified as a medical report or prescription. NEVER guess or hallucinate values.
+6. MEDICINES: For prescriptions, list each medicine's name, dose, frequency, general purpose, and important directions/notes. If handwriting or details are unclear, explicitly state so in notes.
+7. DOCTOR QUESTIONS: Provide 3 to 5 practical, focused questions the patient can ask their doctor during their next visit.
+8. URGENT FLAGS: Set 'urgent_flag' to true ONLY if a biomarker value is very far outside the printed range (e.g., severe critical anemia, dangerously high glucose). Set 'urgent_reason' to a calm, non-alarmist sentence advising the user to see a doctor soon. If no urgent anomaly is present, set urgent_flag to false and urgent_reason to "".
+9. LANGUAGE REQUIREMENT: {lang_rule}
+10. MANDATORY DISCLAIMER: Always provide the standard medical disclaimer reminding the patient to confirm with their doctor.
 """
 
 def build_analysis_user_prompt(text_input: Optional[str], language: str) -> str:
     lang_name = "English" if language == "en" else ("Urdu" if language == "ur" else "Roman Urdu")
     prompt = f"Please analyze this medical document for a patient in {lang_name}.\n"
     if text_input:
-        prompt += f"\n--- DOCUMENT TEXT ---\n{text_input}\n--- END DOCUMENT TEXT ---\n"
-    prompt += "\nExtract all items, provide simple grade-6 explanations, list any medicines and dosages, craft 2-4 helpful questions for their doctor, and flag urgent values if any."
+        prompt += f"\n--- DOCUMENT CONTENT ---\n{text_input}\n--- END DOCUMENT CONTENT ---\n"
+    prompt += "\nExtract printed values and reference ranges, provide simple grade-6 explanations, list 3 to 5 practical questions for the doctor, and flag urgent critical values if any."
     return prompt
 
 def extract_json_data(raw_text: str) -> Dict[str, Any]:
@@ -82,7 +84,6 @@ def extract_json_data(raw_text: str) -> Dict[str, Any]:
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        # Fallback: extract the outermost JSON object bounds { ... }
         start = cleaned.find("{")
         end = cleaned.rfind("}")
         if start != -1 and end != -1 and end > start:
@@ -96,8 +97,8 @@ async def analyze_document(
     language: str = "en"
 ) -> AnalysisResponse:
     """
-    Analyzes medical text or uploaded file (image/PDF) using Gemini.
-    Retries once on invalid JSON/schema response.
+    Analyzes medical text or uploaded file (image/PDF) using Gemini multimodal.
+    Validates structured output with Pydantic and retries once if validation fails.
     """
     if not text_content and not file_bytes:
         raise ValueError("Either document text or a valid file must be provided.")
@@ -107,7 +108,7 @@ async def analyze_document(
     system_prompt = build_analysis_system_prompt(language)
     user_prompt = build_analysis_user_prompt(text_content, language)
 
-    # Build Gemini content parts
+    # Build Gemini multimodal parts
     contents = []
     if file_bytes and mime_type:
         contents.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
@@ -121,7 +122,7 @@ async def analyze_document(
     )
 
     last_error: Optional[Exception] = None
-    # Attempt with 1 retry on malformed JSON / validation failure
+    # 2 attempts: primary attempt + 1 retry on malformed schema / JSON
     for attempt in range(2):
         try:
             logger.info(f"Calling Gemini model {model_name} (attempt {attempt + 1}/2)...")
@@ -134,7 +135,7 @@ async def analyze_document(
             raw_text = response.text or "{}"
             parsed_data = extract_json_data(raw_text)
 
-            # Apply safety rules (critical range check, disclaimer enforcement)
+            # Apply safety rules (critical range check, disclaimer enforcement, post-check sanitization)
             safe_data = verify_safety_flags(parsed_data, language=language)
 
             # Validate against Pydantic schema
@@ -144,8 +145,10 @@ async def analyze_document(
         except (json.JSONDecodeError, ValidationError) as err:
             logger.warning(f"Schema validation / JSON error on attempt {attempt + 1}: {err}")
             last_error = err
-            # Add guidance for retry
-            contents.append("Notice: The previous response was not strictly valid JSON matching the exact schema. Please output strictly compliant JSON matching the requested structure.")
+            contents.append(
+                "Correction: The previous response did not strictly conform to the required JSON schema. "
+                "Ensure valid JSON matching the exact schema without extra keys."
+            )
         except APIError as api_err:
             logger.error(f"Gemini API error during document analysis: {api_err}")
             raise api_err
@@ -157,19 +160,21 @@ async def analyze_document(
 
 def build_ask_system_prompt(language: str) -> str:
     lang_rule = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["en"])
-    return f"""You are SehatSamajh, a compassionate healthcare assistant explaining medical information to patients at a 6th-grade reading level.
+    return f"""You are SehatSamajh, a compassionate healthcare literacy assistant for patients.
 
 CRITICAL RULES:
-1. CONTEXT BOUND: Answer the patient's question ONLY using the facts present in the provided analysis context.
-2. ABSOLUTELY NO DIAGNOSIS: If the user asks 'Do I have diabetes / cancer / illness?', politely refuse to diagnose. Explain what the report values say, and clearly advise them to consult their doctor for any diagnostic evaluation.
-3. NEVER ADVISE DOSAGE OR MEDICATION CHANGES: If asked whether to stop, change, or take a medicine, politely refuse and state that only their prescribing physician can alter their prescription.
-4. TONE: Empathetic, simple, clear, calm, and reassuring.
-5. LANGUAGE: {lang_rule}
+1. CONTEXT BOUND: Answer the patient's question ONLY using facts from the provided analysis context.
+2. ABSOLUTELY NO DIAGNOSIS: If the user asks 'Do I have diabetes / infection / cancer / disease?', politely refuse to diagnose. Explain what the report values say objectively, and remind them that only their doctor can diagnose conditions.
+3. NEVER ADVISE DOSAGE OR MEDICATION CHANGES: If asked whether to take, stop, reduce, or increase medicine, politely refuse and instruct them to consult their prescribing physician.
+4. UNKNOWN FACTS: If the answer is not present in the document context, clearly and politely say that the information is not in the document.
+5. ALWAYS END WITH: 'Always confirm with your doctor.' (or its equivalent in Urdu / Roman Urdu).
+6. LANGUAGE: {lang_rule}
 """
 
 async def answer_question(req: AskRequest) -> AskResponse:
     """
-    Answers a patient follow-up question safely using the document context.
+    Safely answers follow-up questions from the user based only on the analyzed report.
+    Applies post-check sanitization to remove diagnostic or prescriptive statements.
     """
     client = get_genai_client()
     model_name = get_model_name()
@@ -182,7 +187,7 @@ async def answer_question(req: AskRequest) -> AskResponse:
 PATIENT QUESTION:
 {req.question}
 
-Please answer the patient's question according to the safety rules."""
+Please answer the patient's question according to all safety rules."""
 
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,
@@ -190,9 +195,9 @@ Please answer the patient's question according to the safety rules."""
     )
 
     fallback_answers = {
-        "ur": "میں اس سوال کا جواب تیار نہیں کر سکا۔ برائے مہربانی اپنے ڈاکٹر سے براہ راست مشورہ کریں۔",
-        "roman_ur": "Hum is sawal ka jawab tayyar nahi kar sakay. Baraye meharbani apnay doctor se ruju karein.",
-        "en": "I could not generate an answer based on this document. Please consult your doctor directly."
+        "ur": "یہ معلومات اس دستاویز میں موجود نہیں ہیں۔ برائے مہربانی اپنے معالج یا ڈاکٹر سے رجوع کر کے تصدیق کریں۔",
+        "roman_ur": "Yeh maloomat is report mein mojood nahi hain. Baraye meharbani hamesha apnay doctor se tasdeeq karein.",
+        "en": "This information is not available in the document. Always confirm with your doctor."
     }
     fallback_text = fallback_answers.get(req.language, fallback_answers["en"])
 
@@ -203,7 +208,8 @@ Please answer the patient's question according to the safety rules."""
             config=config,
         )
         answer_text = response.text or fallback_text
-        return AskResponse(answer=answer_text.strip())
+        sanitized = sanitize_safety_text(answer_text, req.language)
+        return AskResponse(answer=sanitized.strip())
     except APIError as api_err:
         logger.error(f"Gemini API error during follow-up question: {api_err}")
         raise api_err

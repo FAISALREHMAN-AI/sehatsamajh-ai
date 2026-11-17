@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pill, Clock, AlertCircle, Info, ShieldAlert } from 'lucide-react';
+import { Pill, Clock, Info } from 'lucide-react';
+import { t } from '../i18n';
 
 export default function MedicineList({ medicines, language }) {
   if (!medicines || medicines.length === 0) return null;
@@ -12,18 +13,14 @@ export default function MedicineList({ medicines, language }) {
         <div>
           <h3 className={`text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2 ${isUrdu ? 'font-urdu' : ''}`}>
             <Pill className="w-6 h-6 text-emerald-600" />
-            <span>{isUrdu ? 'تجویز کردہ ادویات کی معلومات' : language === 'roman_ur' ? 'Prescription Dawaiyan' : 'Prescribed Medicines Guide'}</span>
+            <span>{t('medGuideTitle', language)}</span>
           </h3>
           <p className={`text-xs sm:text-sm text-slate-500 mt-1 ${isUrdu ? 'font-urdu' : ''}`}>
-            {isUrdu
-              ? 'یہ معلومات صرف سمجھنے کے لیے ہیں؛ دوا لینے کے اوقات اور مقدار اپنے ڈاکٹر کے مطابق رکھیں۔'
-              : language === 'roman_ur'
-              ? 'Yeh sirf samajhnay ke liye hai; dawai ka waqt aur miqdaar doctor ke mutabiq rakhein.'
-              : 'Plain explanation of each medicine. Never change dosage without consulting your doctor.'}
+            {t('medGuideSubtitle', language)}
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg">
-          {medicines.length} {isUrdu ? 'ادویات' : 'Medicines'}
+          {medicines.length} {t('medCount', language)}
         </span>
       </div>
 
@@ -42,7 +39,7 @@ export default function MedicineList({ medicines, language }) {
                   <h4 className="text-lg font-bold text-slate-900">{med.name}</h4>
                   {med.dose && (
                     <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">
-                      {isUrdu ? 'مقدار / خوراک:' : 'Dose:'} <span className="text-slate-900">{med.dose}</span>
+                      {t('doseLabel', language)} <span className="text-slate-900">{med.dose}</span>
                     </p>
                   )}
                 </div>
@@ -55,7 +52,7 @@ export default function MedicineList({ medicines, language }) {
                 <div className="mt-3 flex items-start gap-2 text-xs sm:text-sm text-slate-700 bg-slate-50 p-2.5 rounded-xl">
                   <Clock className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-slate-900">{isUrdu ? 'لینے کا وقت:' : 'Frequency:'} </strong>
+                    <strong className="text-slate-900">{t('frequencyLabel', language)} </strong>
                     <span className={isUrdu ? 'font-urdu' : ''}>{med.frequency}</span>
                   </div>
                 </div>
@@ -64,7 +61,7 @@ export default function MedicineList({ medicines, language }) {
               {med.purpose && (
                 <div className="mt-3">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1">
-                    {isUrdu ? 'یہ دوا کس لیے ہے؟' : language === 'roman_ur' ? 'Yeh dawai kis liye hai?' : 'Purpose:'}
+                    {t('purposeLabel', language)}
                   </span>
                   <p className={`text-sm text-slate-800 leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
                     {med.purpose}
@@ -77,7 +74,7 @@ export default function MedicineList({ medicines, language }) {
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-start gap-2 text-xs text-amber-800 bg-amber-50/60 p-2.5 rounded-xl">
                 <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <span className={isUrdu ? 'font-urdu' : ''}>
-                  <strong>{isUrdu ? 'خاص ہدایات:' : 'Important:'} </strong>
+                  <strong>{t('notesLabel', language)} </strong>
                   {med.notes}
                 </span>
               </div>
