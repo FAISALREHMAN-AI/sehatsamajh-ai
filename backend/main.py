@@ -5,9 +5,11 @@ Adheres strictly to the API contract and returns standard JSON error responses.
 """
 
 import os
+import io
 import logging
 from typing import Optional
 
+from PIL import Image
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -173,6 +175,21 @@ async def analyze_report(
                 detail="File too large. Maximum size is 4 MB."
             )
         else:
+            # Validate image / PDF integrity to reject corrupt or fake files
+            if extension in (".png", ".jpg", ".jpeg", ".webp"):
+                try:
+                    with Image.open(io.BytesIO(file_bytes)) as img:
+                        img.verify()
+                except Exception:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Corrupt or unreadable image file. Please upload a valid PNG, JPG, or WEBP image."
+                    )
+            elif extension == ".pdf" and not file_bytes.startswith(b"%PDF-"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Corrupt or invalid PDF file. Please upload a valid PDF document."
+                )
             mime_type = canonical_mime
 
     try:

@@ -6,6 +6,7 @@ safety post-check sanitization, and AI service logic.
 
 import io
 import pytest
+from PIL import Image
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from google.genai.errors import APIError
@@ -331,11 +332,14 @@ def test_mocked_analyze_image():
         mock_instance.models.generate_content.return_value = mock_gemini_obj
         mock_client.return_value = mock_instance
 
-        fake_image_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4"
+        img_buf = io.BytesIO()
+        Image.new("RGB", (10, 10), color="white").save(img_buf, format="PNG")
+        valid_image_bytes = img_buf.getvalue()
+
         response = client.post(
             "/api/analyze",
             data={"language": "ur"},
-            files={"file": ("test_report.png", fake_image_bytes, "image/png")}
+            files={"file": ("test_report.png", valid_image_bytes, "image/png")}
         )
         assert response.status_code == 200
         data = response.json()

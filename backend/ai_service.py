@@ -8,6 +8,7 @@ import os
 import re
 import json
 import logging
+import asyncio
 from typing import Optional, Any, Dict
 from google import genai
 from google.genai import types
@@ -149,12 +150,13 @@ async def analyze_document(
                 "Correction: The previous response did not strictly conform to the required JSON schema. "
                 "Ensure valid JSON matching the exact schema without extra keys."
             )
-        except APIError as api_err:
-            logger.error(f"Gemini API error during document analysis: {api_err}")
-            raise api_err
-        except Exception as e:
-            logger.error(f"Gemini API invocation failed: {e}")
-            raise e
+        except (APIError, Exception) as transient_err:
+            logger.warning(f"Transient error on attempt {attempt + 1}: {transient_err}")
+            last_error = transient_err
+            if attempt == 0:
+                await asyncio.sleep(1.0)
+            else:
+                raise transient_err
 
     raise ValueError(f"Failed to generate structured medical explanation after retry: {last_error}")
 
@@ -201,18 +203,28 @@ Please answer the patient's question according to all safety rules."""
     }
     fallback_text = fallback_answers.get(req.language, fallback_answers["en"])
 
-    try:
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[user_prompt],
-            config=config,
-        )
-        answer_text = response.text or fallback_text
-        sanitized = sanitize_safety_text(answer_text, req.language)
-        return AskResponse(answer=sanitized.strip())
-    except APIError as api_err:
-        logger.error(f"Gemini API error during follow-up question: {api_err}")
-        raise api_err
-    except Exception as e:
-        logger.error(f"Error in ask endpoint: {e}")
-        raise e
+    last_err: Optional[Exception] = None
+    for attempt in range(2):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[user_prompt],
+                config=config,
+            )
+            answer_text = response.text or fallback_text
+            sanitized = sanitize_safety_text(answer_text, req.language)
+            return AskResponse(answer=sanitized.strip())
+        except APIError as api_err:
+            logger.warning(f"Gemini API error in ask attempt {attempt + 1}: {api_err}")
+            last_err = api_err
+            if attempt == 0:
+                await asyncio.sleep(1.0)
+            else:
+                raise api_err
+        except Exception as e:
+            logger.warning(f"Error in ask attempt {attempt + 1}: {e}")
+            last_err = e
+            if attempt == 0:
+                await asyncio.sleep(1.0)
+            else:
+                raise e
