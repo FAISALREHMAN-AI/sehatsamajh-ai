@@ -22,10 +22,18 @@ logger = logging.getLogger(__name__)
 
 # Model configuration from environment with default
 DEFAULT_MODEL = "gemini-2.5-flash"
+FALLBACK_MODEL = "gemini-3.5-flash-lite"
 
 def get_model_name() -> str:
     """Read model from GEMINI_MODEL env var with a modern flash default."""
     return os.getenv("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+
+def get_model_candidates() -> list[str]:
+    """Return primary configured model and secondary fallback if quota exhausted."""
+    primary = get_model_name()
+    if primary == FALLBACK_MODEL:
+        return [primary]
+    return [primary, FALLBACK_MODEL]
 
 def get_genai_client() -> genai.Client:
     """Initialize google-genai Client using environment variable."""
@@ -105,7 +113,6 @@ async def analyze_document(
         raise ValueError("Either document text or a valid file must be provided.")
 
     client = get_genai_client()
-    model_name = get_model_name()
     system_prompt = build_analysis_system_prompt(language)
     user_prompt = build_analysis_user_prompt(text_content, language)
 
@@ -122,42 +129,50 @@ async def analyze_document(
         temperature=0.1,
     )
 
+    models_to_try = get_model_candidates()
     last_error: Optional[Exception] = None
-    # 2 attempts: primary attempt + 1 retry on malformed schema / JSON
-    for attempt in range(3):
-        try:
-            logger.info(f"Calling Gemini model {model_name} (attempt {attempt + 1}/3)...")
-            response = client.models.generate_content(
-                model=model_name,
-                contents=contents,
-                config=config,
-            )
 
-            raw_text = response.text or "{}"
-            parsed_data = extract_json_data(raw_text)
+    for model_name in models_to_try:
+        for attempt in range(2):
+            try:
+                logger.info(f"Calling Gemini model {model_name} (attempt {attempt + 1}/2)...")
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=config,
+                )
 
-            # Apply safety rules (critical range check, disclaimer enforcement, post-check sanitization)
-            safe_data = verify_safety_flags(parsed_data, language=language)
+                raw_text = response.text or "{}"
+                parsed_data = extract_json_data(raw_text)
 
-            # Validate against Pydantic schema
-            validated = AnalysisResponse.model_validate(safe_data)
-            return validated
+                # Apply safety rules (critical range check, disclaimer enforcement, post-check sanitization)
+                safe_data = verify_safety_flags(parsed_data, language=language)
 
-        except (json.JSONDecodeError, ValidationError) as err:
-            logger.warning(f"Schema validation / JSON error on attempt {attempt + 1}: {err}")
-            last_error = err
-            contents.append(
-                "Correction: The previous response did not strictly conform to the required JSON schema. "
-                "Ensure valid JSON matching the exact schema without extra keys."
-            )
-        except (APIError, Exception) as transient_err:
-            logger.warning(f"Transient error on attempt {attempt + 1}: {transient_err}")
-            last_error = transient_err
-            if attempt < 2:
-                await asyncio.sleep(2.0 * (attempt + 1))
-            else:
-                raise transient_err
+                # Validate against Pydantic schema
+                validated = AnalysisResponse.model_validate(safe_data)
+                return validated
 
+            except (json.JSONDecodeError, ValidationError) as err:
+                logger.warning(f"Schema validation / JSON error on {model_name} attempt {attempt + 1}: {err}")
+                last_error = err
+                contents.append(
+                    "Correction: The previous response did not strictly conform to the required JSON schema. "
+                    "Ensure valid JSON matching the exact schema without extra keys."
+                )
+            except (APIError, Exception) as transient_err:
+                err_str = str(transient_err).lower()
+                logger.warning(f"Error on {model_name} attempt {attempt + 1}: {transient_err}")
+                last_error = transient_err
+                if "resource_exhausted" in err_str or "quota" in err_str:
+                    logger.info(f"Quota exhausted on {model_name}, falling back if alternative model exists.")
+                    break
+                if attempt == 0:
+                    await asyncio.sleep(1.0)
+                else:
+                    break
+
+    if isinstance(last_error, APIError):
+        raise last_error
     raise ValueError(f"Failed to generate structured medical explanation after retry: {last_error}")
 
 def build_ask_system_prompt(language: str) -> str:
@@ -179,7 +194,6 @@ async def answer_question(req: AskRequest) -> AskResponse:
     Applies post-check sanitization to remove diagnostic or prescriptive statements.
     """
     client = get_genai_client()
-    model_name = get_model_name()
     system_prompt = build_ask_system_prompt(req.language)
 
     context_json = json.dumps(req.context, default=str, ensure_ascii=False)
@@ -203,28 +217,38 @@ Please answer the patient's question according to all safety rules."""
     }
     fallback_text = fallback_answers.get(req.language, fallback_answers["en"])
 
+    models_to_try = get_model_candidates()
     last_err: Optional[Exception] = None
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=[user_prompt],
-                config=config,
-            )
-            answer_text = response.text or fallback_text
-            sanitized = sanitize_safety_text(answer_text, req.language)
-            return AskResponse(answer=sanitized.strip())
-        except APIError as api_err:
-            logger.warning(f"Gemini API error in ask attempt {attempt + 1}: {api_err}")
-            last_err = api_err
-            if attempt < 2:
-                await asyncio.sleep(2.0 * (attempt + 1))
-            else:
-                raise api_err
-        except Exception as e:
-            logger.warning(f"Error in ask attempt {attempt + 1}: {e}")
-            last_err = e
-            if attempt < 2:
-                await asyncio.sleep(2.0 * (attempt + 1))
-            else:
-                raise e
+
+    for model_name in models_to_try:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[user_prompt],
+                    config=config,
+                )
+                answer_text = response.text or fallback_text
+                sanitized = sanitize_safety_text(answer_text, req.language)
+                return AskResponse(answer=sanitized.strip())
+            except APIError as api_err:
+                err_str = str(api_err).lower()
+                logger.warning(f"Gemini API error in ask on {model_name} attempt {attempt + 1}: {api_err}")
+                last_err = api_err
+                if "resource_exhausted" in err_str or "quota" in err_str:
+                    break
+                if attempt == 0:
+                    await asyncio.sleep(1.0)
+                else:
+                    break
+            except Exception as e:
+                logger.warning(f"Error in ask on {model_name} attempt {attempt + 1}: {e}")
+                last_err = e
+                if attempt == 0:
+                    await asyncio.sleep(1.0)
+                else:
+                    break
+
+    if last_err:
+        raise last_err
+    return AskResponse(answer=fallback_text)
