@@ -3,6 +3,8 @@
  * Reads API base URL from VITE_API_URL (default http://localhost:8000).
  */
 
+import { compressImage } from './imageUtils';
+
 const getApiBase = () => {
   const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const cleanUrl = envUrl.replace(/\/+$/, '');
@@ -28,8 +30,18 @@ export async function checkHealth() {
  */
 export async function analyzeDocument({ file, text, language = 'en' }) {
   const formData = new FormData();
-  if (file) {
-    formData.append('file', file);
+  let fileToSend = file;
+
+  if (fileToSend && fileToSend.type && fileToSend.type.startsWith('image/')) {
+    try {
+      fileToSend = await compressImage(fileToSend);
+    } catch (compressErr) {
+      console.warn('Image compression fallback:', compressErr);
+    }
+  }
+
+  if (fileToSend) {
+    formData.append('file', fileToSend);
   }
   if (text && text.trim()) {
     formData.append('text', text.trim());
@@ -52,7 +64,7 @@ export async function analyzeDocument({ file, text, language = 'en' }) {
     return data;
   } catch (err) {
     if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
-      throw new Error('Could not connect to backend server. Make sure the backend is running on port 8000.');
+      throw new Error('Could not connect to backend server. Make sure the backend is running.');
     }
     throw err;
   }

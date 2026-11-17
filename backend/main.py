@@ -35,10 +35,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration for local React dev server and client environments
+# CORS configuration: read allowed origins from ALLOWED_ORIGINS env var (comma separated)
+# Defaults to http://localhost:5173 and http://localhost:3000 when not set
+allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "")
+if allowed_origins_raw.strip():
+    allowed_origins = [orig.strip() for orig in allowed_origins_raw.split(",") if orig.strip()]
+else:
+    allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,8 +62,8 @@ ALLOWED_MIME_TYPES = {
 
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".pdf"}
 
-# 8 MB file size limit as per specification
-MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024
+# 4 MB file size limit as per Vercel deployment constraints (capped at 4.5 MB)
+MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024
 
 # ---------------------------------------------------------------------------
 # Global Exception Handlers for Standardized {"error": "..."} responses
@@ -110,7 +117,7 @@ async def analyze_report(
 ):
     """
     Analyzes uploaded medical report (image/PDF) or pasted text.
-    Validates file formats (png, jpg, jpeg, webp, pdf) and size (max 8 MB).
+    Validates file formats (png, jpg, jpeg, webp, pdf) and size (max 4 MB).
     Returns structured grade-6 explanation in English, Urdu, or Roman Urdu.
     """
     # Normalize and validate language
@@ -163,7 +170,7 @@ async def analyze_report(
         elif len(file_bytes) > MAX_FILE_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail="File size exceeds the 8 MB limit. Please upload a smaller image or PDF."
+                detail="File too large. Maximum size is 4 MB."
             )
         else:
             mime_type = canonical_mime

@@ -23,6 +23,18 @@ def test_health_check():
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
+def test_cors_preflight():
+    """Verify CORS preflight returns correct access-control-allow-origin header for allowed origins."""
+    response = client.options(
+        "/api/health",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET"
+        }
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
 def test_empty_analyze_request():
     """Analyze must reject requests with neither file nor text with friendly error."""
     response = client.post("/api/analyze", data={"language": "en"})
@@ -43,9 +55,9 @@ def test_empty_file_upload():
     assert "error" in res_json
     assert "uploaded file is empty" in res_json["error"]
 
-def test_file_size_exceeded_8mb():
-    """Analyze must reject files larger than 8 MB with HTTP 413."""
-    oversized = b"0" * (9 * 1024 * 1024)  # 9 MB
+def test_file_size_exceeded_4mb():
+    """Analyze must reject files larger than 4 MB with HTTP 413."""
+    oversized = b"0" * (5 * 1024 * 1024)  # 5 MB
     response = client.post(
         "/api/analyze",
         data={"language": "en"},
@@ -54,7 +66,7 @@ def test_file_size_exceeded_8mb():
     assert response.status_code == 413
     res_json = response.json()
     assert "error" in res_json
-    assert "8 MB limit" in res_json["error"]
+    assert "File too large. Maximum size is 4 MB." in res_json["error"]
 
 def test_invalid_file_type():
     """Analyze must reject unsupported file formats like executable or zip files."""

@@ -14,9 +14,9 @@ import {
 import LanguageToggle from './LanguageToggle';
 import { SAMPLE_LAB_REPORT, SAMPLE_PRESCRIPTION } from '../sampleData';
 import { t } from '../i18n';
+import { compressImage, MAX_PDF_SIZE_BYTES } from '../imageUtils';
 
 const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.pdf'];
-const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB
 
 export default function UploadBox({
   onAnalyze,
@@ -81,13 +81,25 @@ export default function UploadBox({
       return;
     }
 
-    if (selected.size > MAX_FILE_SIZE_BYTES) {
+    const isPdf = ext === '.pdf' || selected.type === 'application/pdf';
+    if (isPdf && selected.size > MAX_PDF_SIZE_BYTES) {
       setErrorMsg(
         isUrdu
-          ? 'فائل کا سائز 8 ایم بی سے کم ہونا چاہیے۔'
+          ? 'پی ڈی ایف فائل بہت بڑی ہے۔ زیادہ سے زیادہ سائز 4 ایم بی ہے۔'
           : language === 'roman_ur'
-          ? 'File size 8 MB se kam hona chahiye.'
-          : 'File size must be under 8 MB.'
+          ? 'PDF file bohat bari hai. Maximum size 4 MB hai.'
+          : 'PDF file is too large. Maximum size is 4 MB.'
+      );
+      return;
+    }
+
+    if (!isPdf && selected.size > 25 * 1024 * 1024) {
+      setErrorMsg(
+        isUrdu
+          ? 'تصویر کا سائز بہت بڑا ہے (زیادہ سے زیادہ 25 ایم بی)۔'
+          : language === 'roman_ur'
+          ? 'Image ka size bohat bara hai (maximum 25 MB).'
+          : 'Image file is too large (maximum 25 MB).'
       );
       return;
     }
@@ -120,7 +132,7 @@ export default function UploadBox({
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -138,8 +150,31 @@ export default function UploadBox({
       return;
     }
 
+    let fileToSend = file;
+    if (fileToSend) {
+      const isPdf = fileToSend.name.toLowerCase().endsWith('.pdf') || fileToSend.type === 'application/pdf';
+      if (isPdf) {
+        if (fileToSend.size > MAX_PDF_SIZE_BYTES) {
+          setErrorMsg(
+            isUrdu
+              ? 'پی ڈی ایف فائل بہت بڑی ہے۔ زیادہ سے زیادہ سائز 4 ایم بی ہے۔'
+              : language === 'roman_ur'
+              ? 'PDF file bohat bari hai. Maximum size 4 MB hai.'
+              : 'PDF file is too large. Maximum size is 4 MB.'
+          );
+          return;
+        }
+      } else {
+        try {
+          fileToSend = await compressImage(fileToSend);
+        } catch (compressErr) {
+          console.warn('Image compression fallback:', compressErr);
+        }
+      }
+    }
+
     onAnalyze({
-      file,
+      file: fileToSend,
       text: text.trim(),
       language,
     });
