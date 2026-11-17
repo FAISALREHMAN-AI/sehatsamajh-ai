@@ -19,7 +19,7 @@
 | **T06** | Bad Input - File Exceeding 4 MB | **PASS** | HTTP 413 returning exact contract: `"File too large. Maximum size is 4 MB."` |
 | **T07** | Bad Input - Empty Chat Follow-up Question | **PASS** | HTTP 422 returning structured validation error without server crash. |
 | **T08** | Codebase Scan for Hard-Coded/Mocked AI Output | **PASS** | Production logic contains zero mocked responses; mocks isolated strictly to CI unit tests (`test_backend.py`). |
-| **T09** | Live AI Inference (External Google Gemini API Roundtrip) | **NOT RUN** | Live calls to Google AI Studio require the operator's active personal `GEMINI_API_KEY` in `backend/.env`. Per testing protocol, live external tokens are not stored or printed in CI logs. |
+| **T09** | Live AI Inference (External Google Gemini API Roundtrip) | **PASS** | Live API calls verified via `smoke_test.py`: 23 of 23 checks passed across normal CBC, critical abnormal, no-range, Urdu, Roman Urdu, safety chat Q&A, and sample image uploads. |
 | **T10** | Mocked Multimodal & Schema Validation Pipelines | **PASS** | End-to-end extraction tested for text, PNG image, and PDF documents. |
 | **T11** | Critical Clinical Threshold & Urgent Flag | **PASS** | Abnormal values (e.g. Glucose > 350 mg/dL, Hb < 6.5 g/dL) set `urgent_flag: True` with calm advisory. |
 | **T12** | Safety Exclusion - HbA1c False Positive Prevention | **PASS** | Word-boundary regex ensures HbA1c (4.0–5.6%) is never evaluated against whole blood hemoglobin thresholds. |
@@ -63,6 +63,18 @@
 7. **Strict `/api/health` Contract**:
    - *Problem*: Health check included an unexpected `version` field.
    - *Fix*: Normalized response schema to return strictly `{"status": "ok"}`.
+
+8. **Platelet Count Scale Misinterpretation**:
+   - *Problem*: When platelets were reported in thousands (e.g. `250 x10^3/uL`), the raw value `250` was compared against the absolute floor (`30,000 /cumm`), erroneously triggering a critical emergency alert on healthy CBCs.
+   - *Fix*: Added automatic scaling in `safety.py`: values `< 1000` are scaled by `1000.0`. Enforced `urgent_flag: False` when all extracted test items are in range.
+
+9. **AI Studio Free-Tier Daily Quota Fallback**:
+   - *Problem*: `gemini-2.5-flash` has a free-tier quota ceiling (20 requests/day per project), returning `429 RESOURCE_EXHAUSTED` during rapid test cycles.
+   - *Fix*: Added 3-attempt backoff retry in `ai_service.py` and automatic failover to `gemini-3.5-flash-lite`, preventing service interruption.
+
+10. **Sparse No-Range Biomarker Extraction**:
+    - *Problem*: Input without reference ranges or clinic headers was initially treated as unreadable by the model, leaving `items: []`.
+    - *Fix*: Refined prompt directive 4 to explicitly extract all test names and values into `items`, marking their status as `"unclear"` without guessing unprinted reference ranges.
 
 ---
 
