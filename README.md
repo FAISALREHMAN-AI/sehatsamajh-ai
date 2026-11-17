@@ -81,7 +81,7 @@ sehatsamajh/
 │   ├── ai_service.py      # Gemini SDK integration, prompts, validation & retry logic
 │   ├── schemas.py         # Pydantic models for structured output & validation
 │   ├── safety.py          # Critical threshold rules and multilingual disclaimers
-│   ├── test_backend.py    # Pytest unit & integration test suite (11 tests)
+│   ├── test_backend.py    # Pytest unit & integration test suite (17 tests)
 │   └── requirements.txt   # Python backend dependencies
 ├── frontend/
 │   ├── src/
@@ -147,7 +147,7 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 Verify the backend is live:
 ```bash
 curl http://127.0.0.1:8000/api/health
-# Response: {"status":"ok","version":"1.0.0"}
+# Response: {"status":"ok"}
 ```
 
 To run the backend test suite:
@@ -209,4 +209,4 @@ Open your browser and navigate to **`http://localhost:5173`**.
 - **Multilingual Support**: English, Urdu (RTL + Noto Nastaliq Urdu), and Roman Urdu.
 - **No Hard-Coded AI**: Integrates directly with Google Gemini Flash.
 - **No Secrets in Repo**: `.env` is gitignored; `.env.example` provided.
-- **Safety Tested**: 11 automated Pytest unit and integration tests passing.
+- **Safety Tested**: 17 automated Pytest unit and integration tests passing.
