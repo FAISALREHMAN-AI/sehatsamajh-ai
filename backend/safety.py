@@ -222,9 +222,14 @@ def verify_safety_flags(analysis_dict: dict, language: str = "en") -> dict:
             # Check matching patterns
             matched = any(re.search(pat, name_lower) for pat in thresh["patterns"])
             if matched:
-                if val_num < thresh["min"]:
+                chk_val = val_num
+                if thresh["category"] == "platelets" and val_num < 1000.0:
+                    # Platelets in thousands (e.g. 250 x10^3/uL -> 250,000)
+                    chk_val = val_num * 1000.0
+
+                if chk_val < thresh["min"]:
                     critical_findings.append(f"{name} ({val_str} {thresh['unit']}) is significantly below reference interval")
-                elif val_num > thresh["max"]:
+                elif chk_val > thresh["max"]:
                     critical_findings.append(f"{name} ({val_str} {thresh['unit']}) is significantly above reference interval")
                 break
 
