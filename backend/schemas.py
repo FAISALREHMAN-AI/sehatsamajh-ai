@@ -12,14 +12,14 @@ Language = Literal["en", "ur", "roman_ur"]
 
 
 class LabItem(BaseModel):
-    name: str = Field(description="Name of the test or biomarker")
-    value: str = Field(description="Patient value exactly as printed")
+    name: str = Field(default="", description="Name of the test or biomarker")
+    value: str = Field(default="", description="Patient value exactly as printed")
     unit: str = Field(default="", description="Measurement unit e.g. mg/dL, g/dL")
     reference_range: str = Field(default="", description="Printed reference range only")
-    status: ItemStatus = Field(description="normal, high, low, or unclear")
-    plain_explanation: str = Field(description="Simple 6th-grade explanation of what this test generally means")
+    status: ItemStatus = Field(default="unclear", description="normal, high, low, or unclear")
+    plain_explanation: str = Field(default="", description="Simple 6th-grade explanation of what this test generally means")
 
-    @field_validator("unit", "reference_range", mode="before")
+    @field_validator("name", "value", "unit", "reference_range", "plain_explanation", mode="before")
     @classmethod
     def coerce_none_to_str(cls, v):
         return "" if v is None else str(v).strip()
@@ -42,27 +42,27 @@ class LabItem(BaseModel):
 
 
 class MedicineItem(BaseModel):
-    name: str = Field(description="Brand or generic medicine name")
+    name: str = Field(default="", description="Brand or generic medicine name")
     dose: str = Field(default="", description="Dosage e.g. 500mg, 1 tablet")
     frequency: str = Field(default="", description="How often e.g. once daily after food, subah shaam")
     purpose: str = Field(default="", description="Simple explanation of what this medicine is generally used for")
     notes: str = Field(default="", description="Important directions or precautions e.g. complete full course")
 
-    @field_validator("dose", "frequency", "purpose", "notes", mode="before")
+    @field_validator("name", "dose", "frequency", "purpose", "notes", mode="before")
     @classmethod
     def coerce_none_to_str(cls, v):
         return "" if v is None else str(v).strip()
 
 
 class AnalysisResponse(BaseModel):
-    doc_type: DocType = Field(description="Type of medical document: lab_report, prescription, or unknown")
-    summary: str = Field(description="Grade-6 plain-language summary of the document")
+    doc_type: DocType = Field(default="unknown", description="Type of medical document: lab_report, prescription, or unknown")
+    summary: str = Field(default="", description="Grade-6 plain-language summary of the document")
     items: List[LabItem] = Field(default_factory=list, description="Extracted lab test items")
     medicines: List[MedicineItem] = Field(default_factory=list, description="Extracted prescription medicines")
     questions_for_doctor: List[str] = Field(default_factory=list, description="Helpful questions the user can ask their doctor")
     urgent_flag: bool = Field(default=False, description="True ONLY if a value is critically outside normal range")
     urgent_reason: str = Field(default="", description="Reason for urgent alert if urgent_flag is true, else empty")
-    disclaimer: str = Field(description="Mandatory medical disclaimer")
+    disclaimer: str = Field(default="", description="Mandatory medical disclaimer")
 
     @field_validator("doc_type", mode="before")
     @classmethod
@@ -78,9 +78,9 @@ class AnalysisResponse(BaseModel):
             return "prescription"
         return "unknown"
 
-    @field_validator("urgent_reason", mode="before")
+    @field_validator("summary", "urgent_reason", "disclaimer", mode="before")
     @classmethod
-    def coerce_none_urgent_reason(cls, v):
+    def coerce_none_strings(cls, v):
         return "" if v is None else str(v).strip()
 
     @field_validator("items", "medicines", "questions_for_doctor", mode="before")

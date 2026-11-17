@@ -17,6 +17,7 @@ export default function App() {
     }
   });
   const [initialSample, setInitialSample] = useState(null);
+  const [autoAnalyze, setAutoAnalyze] = useState(false);
 
   // Sync document direction and font attributes with active language
   useEffect(() => {
@@ -33,8 +34,10 @@ export default function App() {
   const handleNavigate = (targetScreen, options = {}) => {
     if (options.sample) {
       setInitialSample(options.sample);
+      setAutoAnalyze(!!options.autoAnalyze);
     } else {
       setInitialSample(null);
+      setAutoAnalyze(false);
     }
     setScreen(targetScreen);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -62,6 +65,7 @@ export default function App() {
           language={language}
           onLanguageChange={setLanguage}
           initialSample={initialSample}
+          autoAnalyze={autoAnalyze}
         />
       )}
 

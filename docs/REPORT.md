@@ -153,7 +153,7 @@ SehatSamajh follows a defense-in-depth safety paradigm:
 ---
 
 ## 9. Testing & Quality Verification Record
-- **Automated Backend Tests (`pytest`)**: 19 tests executed and passing with 100% success rate:
+- **Automated Backend Tests (`pytest`)**: 23 tests executed and passing with 100% success rate:
   - Health check endpoint contract (`{"status": "ok"}`)
   - Empty input rejection (HTTP 400)
   - Zero-byte file upload rejection (HTTP 400)
@@ -164,12 +164,15 @@ SehatSamajh follows a defense-in-depth safety paradigm:
   - Critical threshold alert verification (e.g. glucose = 420 mg/dL)
   - Sample lab report critical alert verification (Hemoglobin = 6.2 g/dL)
   - Exclusion verification (HbA1c 5.2% does not trigger blood hemoglobin alert)
-  - Safety post-check sanitization of diagnostic statements and medication change commands
+  - Safety post-check sanitization of diagnostic statements and medication change commands (including start/stop/alter commands)
   - Pydantic schema casing normalization and null value coercion
   - Markdown code fence JSON extraction
   - Mocked multimodal analysis for Text, PNG images, and PDF documents
   - Safe conversational Q&A endpoint execution
   - Gemini API rate limit / quota error translation (HTTP 429)
+  - Unreadable or unknown document fallback schema verification
+  - Automatic doctor question supplementation (minimum 3 questions)
+  - Friendly HTTP 503 service unavailable response when API key is unconfigured
 - **Frontend Verification**:
   - Production build compiled cleanly with Vite (`npm run build`).
   - Tested language toggling across English, Urdu (RTL direction + Noto Nastaliq Urdu font), and Roman Urdu.

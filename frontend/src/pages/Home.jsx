@@ -69,7 +69,7 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
         </p>
 
         {/* Action Buttons */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+        <div className="mt-10 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 w-full">
           <button
             type="button"
             onClick={() => onNavigate('analyze')}
@@ -81,11 +81,20 @@ export default function Home({ onNavigate, language, onLanguageChange, hasSavedR
 
           <button
             type="button"
-            onClick={() => onNavigate('analyze', { sample: 'lab' })}
-            className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-base sm:text-lg border border-slate-300 shadow-sm transition-all flex items-center justify-center gap-2"
+            onClick={() => onNavigate('analyze', { sample: 'lab', autoAnalyze: true })}
+            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-base sm:text-lg border border-slate-300 shadow-sm transition-all flex items-center justify-center gap-2"
           >
             <Sparkles className="w-5 h-5 text-amber-500" />
             <span>{t('ctaSampleLab', language)}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('analyze', { sample: 'rx', autoAnalyze: true })}
+            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-base sm:text-lg border border-slate-300 shadow-sm transition-all flex items-center justify-center gap-2"
+          >
+            <Pill className="w-5 h-5 text-emerald-600" />
+            <span>{t('ctaSamplePrescription', language)}</span>
           </button>
 
           {hasSavedResult && (

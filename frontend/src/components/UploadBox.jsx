@@ -28,7 +28,7 @@ export default function UploadBox({
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [text, setText] = useState(initialText);
-  const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'text'
+  const [activeTab, setActiveTab] = useState(initialText ? 'text' : 'upload'); // 'upload' | 'text'
   const [dragActive, setDragActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -36,6 +36,14 @@ export default function UploadBox({
   const cameraInputRef = useRef(null);
 
   const isUrdu = language === 'ur';
+
+  // Synchronize initialText prop updates (e.g. when loaded via sample buttons)
+  React.useEffect(() => {
+    if (initialText) {
+      setText(initialText);
+      setActiveTab('text');
+    }
+  }, [initialText]);
 
   const handleDrag = (e) => {
     e.preventDefault();

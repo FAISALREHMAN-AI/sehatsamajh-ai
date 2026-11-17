@@ -37,12 +37,9 @@ This script outlines the exact click-by-click steps to present the **SehatSamajh
 
 ## Step 2: Demo Lab Report (CBC with Critical Hemoglobin) (0:45 - 2:00)
 1. **Click "Try Sample Lab Report"** on the home page.
-2. The user is taken to the **Analyze screen** with the synthetic CBC report automatically populated in the text tab.
-   - *(Optional multimodal demo)*: Switch to the **Upload Document / Photo** tab and select `samples/sample_lab_report.png` from the file picker to demonstrate image vision processing.
-3. **Click "Analyze Document Now"**.
-4. **Showcase Loading State**:
-   - Note the spinning loader and calming step-by-step progress messaging (*"Reading printed reference intervals...", "Translating medical jargon to Grade-6 language..."*).
-5. **Review the Results Screen**:
+2. The system automatically loads the synthetic CBC sample and runs the real AI analysis, displaying the progress states (*"Reading printed reference intervals...", "Translating medical jargon to Grade-6 language..."*).
+   - *(Optional multimodal demo)*: Or click "Upload Document", switch to the **Upload Document / Photo** tab and select `samples/sample_lab_report.png` from the file picker to demonstrate image vision processing.
+3. **Review the Results Screen**:
    - **Urgent Banner**: A high-visibility, calm red banner appears at the top:
      > *"Medical Notice: One or more lab values are significantly outside the reference range (Hemoglobin (Hb) (6.2 g/dL) is significantly below reference interval). Please schedule a prompt consultation with your doctor."*
    - **Summary Card**: Grade-6 plain language summary explaining red blood cells and immunity.
@@ -106,6 +103,6 @@ If live Gemini API calls fail due to network loss, proxy blockage, or 429 quota 
    - The full interactive UI (traffic light table, medicines guide, urgent banner, copy button, audio read-aloud) will load instantaneously from the cached state.
 2. **Pre-Generated Test Suite Verification**:
    - Open a terminal and run `pytest -v` in `/backend`.
-   - Point the judges to all 19 unit & integration tests passing with 100% test coverage of schema validation, multimodal payload handling, safety rules, and rate limit error handling.
+   - Point the judges to all 23 unit & integration tests passing with 100% test coverage of schema validation, multimodal payload handling, safety rules, and rate limit error handling.
 3. **Pre-Rendered Sample PNG Artifacts**:
    - Showcase `/samples/sample_lab_report.png` and `/samples/sample_prescription.png` directly in the image viewer to display the high-fidelity input documents created for the project.

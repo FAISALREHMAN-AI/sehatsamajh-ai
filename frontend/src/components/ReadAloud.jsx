@@ -27,9 +27,12 @@ export default function ReadAloud({ textToRead, language }) {
       };
 
       checkVoices();
-      window.speechSynthesis.onvoiceschanged = checkVoices;
+      window.speechSynthesis.addEventListener('voiceschanged', checkVoices);
+      const timer = setTimeout(checkVoices, 250);
 
       return () => {
+        clearTimeout(timer);
+        window.speechSynthesis.removeEventListener('voiceschanged', checkVoices);
         if (window.speechSynthesis) {
           window.speechSynthesis.cancel();
         }
@@ -38,6 +41,20 @@ export default function ReadAloud({ textToRead, language }) {
       setIsSupported(false);
     }
   }, [language]);
+
+  // Chromium keep-alive interval to prevent audio freezing on longer texts
+  useEffect(() => {
+    let intervalId;
+    if (isPlaying && !isPaused && typeof window !== 'undefined' && window.speechSynthesis) {
+      intervalId = setInterval(() => {
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      }, 10000);
+    }
+    return () => clearInterval(intervalId);
+  }, [isPlaying, isPaused]);
 
   // If browser doesn't support Web Speech API or voice is unavailable, hide it
   if (!isSupported || !voiceAvailable) {

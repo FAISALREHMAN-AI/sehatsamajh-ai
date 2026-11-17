@@ -7,7 +7,7 @@
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4+-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![Gemini](https://img.shields.io/badge/Google%20GenAI-Gemini%20Flash-4285F4.svg?logo=google&logoColor=white)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-19%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-23%20Passing-brightgreen.svg)]()
 
 ---
 
@@ -172,11 +172,10 @@ Frontend will be live at `http://localhost:5173`.
 
 ## 10. How to Run the Demo
 1. Open `http://localhost:5173` in your browser.
-2. Click **"Try Sample Lab Report"** on the home screen.
-3. Click **"Analyze Document Now"** to run the live AI analysis on the synthetic CBC sample.
-4. Observe the **Urgent Banner** triggered by the critically low hemoglobin (6.2 g/dL), the **traffic-light table**, **3-5 doctor questions**, and the **audio Read-Aloud** button.
-5. Click **"Analyze Another"**, toggle the language to **اردو**, load the **Sample Prescription (3 medicines)**, and observe the full RTL Urdu experience.
-6. In the **Chat Box**, ask a question (e.g. *"Can I stop taking Augmentin once my fever goes down?"*) and observe the safe non-prescriptive response.
+2. Click **"Try Sample Lab Report"** or **"Try Sample Prescription"** on the home screen to automatically run the live AI analysis on the synthetic sample (or click "Upload Medical Document" to upload your own).
+3. Observe the **Urgent Banner** triggered by the critically low hemoglobin (6.2 g/dL), the **traffic-light table**, **3-5 doctor questions**, and the **audio Read-Aloud** button.
+4. Click **"Analyze Another"**, toggle the language to **اردو**, load the **Sample Prescription (3 medicines)**, and observe the full RTL Urdu experience.
+5. In the **Chat Box**, ask a question (e.g. *"Can I stop taking Augmentin once my fever goes down?"*) and observe the safe non-prescriptive response.
 
 For complete click-by-click instructions, refer to [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).  
 For the 6-minute presentation script, refer to [docs/PITCH.md](docs/PITCH.md).  

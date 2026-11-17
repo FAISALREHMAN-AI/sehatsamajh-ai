@@ -112,17 +112,42 @@ DIAGNOSIS_PATTERNS = [
      r"report mein \2 se mutaliq marks darj hain (apnay doctor se tasdeeq karein)"),
 ]
 
-# Patterns representing instructions to change medication to sanitize
+# Patterns representing instructions to change or initiate medication to sanitize
 MEDICINE_CHANGE_PATTERNS = [
     (r"\b(stop taking|discontinue|quit taking|do not take)\s+([a-zA-Z0-9\s]+?)([\.,;]|$)",
      r"do not change medication without speaking to your doctor (confirm with your doctor)\3"),
+    (r"\b(start taking|begin taking|start on|switch to)\s+([a-zA-Z0-9\s]+?)([\.,;]|$)",
+     r"medication should only be prescribed by your doctor (confirm with your doctor)\3"),
     (r"\b(increase|decrease|double|reduce|change)\s+(your\s+)?(dose|dosage|amount)\s+(of\s+)?([a-zA-Z0-9\s]+?)([\.,;]|$)",
      r"dosage should only be adjusted by your prescribing physician (confirm with your doctor)\6"),
-    (r"(دوا|دوائی|گولی)\s*(لینا بند کر دیں|کھانا چھوڑ دیں|روک دیں|بڑھائیں|کم کریں)",
+    (r"(دوا|دوائی|گولی)(?:\s+[^\s]+){0,2}\s*(لینا بند کر دیں|کھانا چھوڑ دیں|روک دیں|بڑھائیں|کم کریں)",
      r"دوا کی مقدار صرف ڈاکٹر کے مشورے سے تبدیل کریں (اپنے معالج یا ڈاکٹر سے رجوع کریں)"),
-    (r"\b(dawai|dawa|tablet|goli)\s*(lena band karein|khana chor dein|barha dein|kam karein)\b",
+    (r"(دوا|دوائی|گولی)(?:\s+[^\s]+){0,2}\s*(شروع کریں|لینا شروع کریں)",
+     r"دوا صرف ڈاکٹر کے مشورے اور نسخے کے مطابق استعمال کریں (اپنے معالج یا ڈاکٹر سے رجوع کریں)"),
+    (r"\b(dawai|dawa|tablet|goli)(?:\s+[a-zA-Z]+){0,2}\s*(lena band karein|khana chor dein|barha dein|kam karein)\b",
      r"dawai ki miqdaar sirf doctor ke mashwaray se tabdeel karein (apnay doctor se tasdeeq karein)"),
+    (r"\b(dawai|dawa|tablet|goli)(?:\s+[a-zA-Z]+){0,2}\s*(shuru karein|lena shuru karein)\b",
+     r"dawai sirf doctor ke mashwaray se shuru karein (apnay doctor se tasdeeq karein)"),
 ]
+
+# Default fallback questions ensuring 3 to 5 practical questions per requirement
+DEFAULT_PRACTICAL_QUESTIONS: Dict[str, List[str]] = {
+    "en": [
+        "What do these specific findings mean for my day-to-day health?",
+        "Do I need any follow-up tests, monitoring, or lifestyle adjustments?",
+        "What warning signs or symptoms should prompt me to contact you immediately?"
+    ],
+    "ur": [
+        "یہ نتائج مجموعی طور پر میری صحت اور روزمرہ زندگی کے لیے کیا معنی رکھتے ہیں؟",
+        "کیا مجھے کسی فالو اپ ٹیسٹ یا خوراک میں تبدیلی کی ضرورت ہے؟",
+        "ایسی کون سی علامات ہیں جن کی صورت میں مجھے فوری طور پر ہسپتال یا آپ سے رابطہ کرنا چاہیے؟"
+    ],
+    "roman_ur": [
+        "Yeh results meri sehat ke liye kya matlab rakhte hain?",
+        "Kya mujhe kisi mazeed follow-up test ya parhez ki zaroorat hai?",
+        "Aisi kaunsi alamat hain jin par mujhe fori taur par doctor se ruju karna chahiye?"
+    ]
+}
 
 def sanitize_safety_text(text: str, language: str = "en") -> str:
     """
@@ -150,17 +175,34 @@ def verify_safety_flags(analysis_dict: dict, language: str = "en") -> dict:
     Validate and enforce safety rules:
     1. Ensure disclaimer is populated in the proper language.
     2. Check items for critical laboratory anomalies with calm urgent reason.
-    3. Post-check sanitization across all narrative fields.
+    3. Ensure at least 3 practical doctor questions are present.
+    4. Post-check sanitization across all narrative fields.
     """
+    if not isinstance(analysis_dict, dict):
+        analysis_dict = {}
+
     # Enforce disclaimer
     if not analysis_dict.get("disclaimer"):
         analysis_dict["disclaimer"] = get_disclaimer(language)
+
+    # Ensure doc_type is defaulted if missing
+    if not analysis_dict.get("doc_type"):
+        analysis_dict["doc_type"] = "unknown"
+
+    # Ensure summary is populated
+    if not analysis_dict.get("summary"):
+        if language == "ur":
+            analysis_dict["summary"] = "اس دستاویز کا طبی خلاصہ تیار نہیں ہو سکا۔ برائے مہربانی اپنے معالج یا ڈاکٹر سے رجوع کریں۔"
+        elif language == "roman_ur":
+            analysis_dict["summary"] = "Is document ka tibbi khulasa tayyar nahi ho saka. Baraye meharbani apnay doctor se ruju karein."
+        else:
+            analysis_dict["summary"] = "Unable to identify a medical summary for this document. Please consult your doctor."
 
     # Check for rule-based critical alerts
     urgent = analysis_dict.get("urgent_flag", False)
     urgent_reason = analysis_dict.get("urgent_reason", "").strip()
 
-    items = analysis_dict.get("items", [])
+    items = analysis_dict.get("items", []) or []
     critical_findings: List[str] = []
 
     for item in items:
@@ -208,6 +250,17 @@ def verify_safety_flags(analysis_dict: dict, language: str = "en") -> dict:
     analysis_dict["urgent_flag"] = bool(urgent)
     analysis_dict["urgent_reason"] = urgent_reason if urgent else ""
 
+    # Ensure 3 to 5 practical questions for the doctor (unless document is completely unknown)
+    q_list = analysis_dict.get("questions_for_doctor")
+    if not isinstance(q_list, list):
+        q_list = []
+    if len(q_list) < 3 and analysis_dict.get("doc_type") != "unknown":
+        defaults = DEFAULT_PRACTICAL_QUESTIONS.get(language, DEFAULT_PRACTICAL_QUESTIONS["en"])
+        for def_q in defaults:
+            if def_q not in q_list and len(q_list) < 5:
+                q_list.append(def_q)
+    analysis_dict["questions_for_doctor"] = q_list
+
     # Post-check sanitization on all output fields
     if "summary" in analysis_dict and isinstance(analysis_dict["summary"], str):
         analysis_dict["summary"] = sanitize_safety_text(analysis_dict["summary"], language)
@@ -215,15 +268,16 @@ def verify_safety_flags(analysis_dict: dict, language: str = "en") -> dict:
     if "urgent_reason" in analysis_dict and isinstance(analysis_dict["urgent_reason"], str):
         analysis_dict["urgent_reason"] = sanitize_safety_text(analysis_dict["urgent_reason"], language)
 
-    for item in analysis_dict.get("items", []):
-        if "plain_explanation" in item and isinstance(item["plain_explanation"], str):
+    for item in analysis_dict.get("items", []) or []:
+        if isinstance(item, dict) and "plain_explanation" in item and isinstance(item["plain_explanation"], str):
             item["plain_explanation"] = sanitize_safety_text(item["plain_explanation"], language)
 
-    for med in analysis_dict.get("medicines", []):
-        if "purpose" in med and isinstance(med["purpose"], str):
-            med["purpose"] = sanitize_safety_text(med["purpose"], language)
-        if "notes" in med and isinstance(med["notes"], str):
-            med["notes"] = sanitize_safety_text(med["notes"], language)
+    for med in analysis_dict.get("medicines", []) or []:
+        if isinstance(med, dict):
+            if "purpose" in med and isinstance(med["purpose"], str):
+                med["purpose"] = sanitize_safety_text(med["purpose"], language)
+            if "notes" in med and isinstance(med["notes"], str):
+                med["notes"] = sanitize_safety_text(med["notes"], language)
 
     # Sanitize questions for doctor as well
     if "questions_for_doctor" in analysis_dict and isinstance(analysis_dict["questions_for_doctor"], list):

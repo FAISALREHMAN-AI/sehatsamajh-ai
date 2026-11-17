@@ -141,23 +141,15 @@ async def analyze_report(
                 detail=f"Unsupported file format '{extension}'. Please upload only PNG, JPG, JPEG, WEBP, or PDF files."
             )
 
-        content_type = file.content_type or ""
-        # Handle mobile octet-stream MIME types with valid extensions
-        if content_type == "application/octet-stream" or not content_type:
-            if extension in (".jpg", ".jpeg"):
-                content_type = "image/jpeg"
-            elif extension == ".png":
-                content_type = "image/png"
-            elif extension == ".webp":
-                content_type = "image/webp"
-            elif extension == ".pdf":
-                content_type = "application/pdf"
-
-        if content_type not in ALLOWED_MIME_TYPES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported file format '{content_type}'. Please upload only PNG, JPG, JPEG, WEBP, or PDF files."
-            )
+        # Map to canonical Gemini MIME type
+        ext_to_mime = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".pdf": "application/pdf"
+        }
+        canonical_mime = ext_to_mime.get(extension, "application/octet-stream")
 
         file_bytes = await file.read()
         if len(file_bytes) == 0:
@@ -170,11 +162,11 @@ async def analyze_report(
             mime_type = None
         elif len(file_bytes) > MAX_FILE_SIZE_BYTES:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail="File size exceeds the 8 MB limit. Please upload a smaller image or PDF."
             )
         else:
-            mime_type = content_type
+            mime_type = canonical_mime
 
     try:
         result = await analyze_document(
@@ -187,6 +179,11 @@ async def analyze_report(
     except ValueError as ve:
         err_msg = str(ve)
         logger.warning(f"Configuration or validation error: {err_msg}")
+        if "GEMINI_API_KEY" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=err_msg
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=err_msg
@@ -228,9 +225,15 @@ async def ask_question_endpoint(req: AskRequest):
         response = await answer_question(req)
         return response
     except ValueError as ve:
+        err_msg = str(ve)
+        if "GEMINI_API_KEY" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=err_msg
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(ve)
+            detail=err_msg
         )
     except APIError as api_err:
         err_str = str(api_err).lower()

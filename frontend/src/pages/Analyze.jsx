@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, HeartPulse, AlertCircle, RefreshCw } from 'lucide-react';
 import UploadBox from '../components/UploadBox';
 import { analyzeDocument } from '../api';
@@ -11,16 +11,18 @@ export default function Analyze({
   language,
   onLanguageChange,
   initialSample = null,
+  autoAnalyze = false,
 }) {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const autoTriggeredRef = useRef(false);
 
   const isUrdu = language === 'ur';
 
   let initialText = '';
   if (initialSample === 'lab') {
     initialText = SAMPLE_LAB_REPORT;
-  } else if (initialSample === 'prescription') {
+  } else if (initialSample === 'rx' || initialSample === 'prescription') {
     initialText = SAMPLE_PRESCRIPTION;
   }
 
@@ -51,6 +53,18 @@ export default function Analyze({
       setLoading(false);
     }
   };
+
+  // If navigated with autoAnalyze (e.g. from "Try Sample Lab Report" on Home), trigger live analysis immediately
+  useEffect(() => {
+    if (autoAnalyze && initialText && !autoTriggeredRef.current) {
+      autoTriggeredRef.current = true;
+      handleAnalyze({
+        file: null,
+        text: initialText,
+        language,
+      });
+    }
+  }, [autoAnalyze, initialText, language]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between" dir={isUrdu ? 'rtl' : 'ltr'}>

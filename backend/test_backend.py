@@ -409,3 +409,46 @@ def test_api_limit_error_handling():
         res_json = response.json()
         assert "error" in res_json
         assert "rate limit or quota exceeded" in res_json["error"]
+
+def test_unreadable_or_unknown_document_defaults():
+    """Verify unreadable or empty document returns status unclear and doc_type unknown."""
+    raw = {}
+    safe = verify_safety_flags(raw, language="en")
+    resp = AnalysisResponse.model_validate(safe)
+    assert resp.doc_type == "unknown"
+    assert resp.items == []
+    assert resp.medicines == []
+    assert "Unable to identify" in resp.summary
+    assert "Medical Disclaimer" in resp.disclaimer
+
+def test_start_medication_sanitization():
+    """Verify safety sanitizes instructions to start, begin, or switch medications."""
+    raw_start = "Start taking Metformin 500mg daily."
+    clean_start = sanitize_safety_text(raw_start, "en")
+    assert "medication should only be prescribed by your doctor" in clean_start
+
+    raw_ur = "یہ دوا کھانا شروع کریں"
+    clean_ur = sanitize_safety_text(raw_ur, "ur")
+    assert "دوا صرف ڈاکٹر کے مشورے" in clean_ur
+
+def test_auto_supplement_doctor_questions():
+    """Ensure lab reports always have at least 3 practical questions for the doctor."""
+    partial = {
+        "doc_type": "lab_report",
+        "questions_for_doctor": ["What does my ESR mean?"]
+    }
+    safe = verify_safety_flags(partial, language="en")
+    assert len(safe["questions_for_doctor"]) >= 3
+    assert "What does my ESR mean?" in safe["questions_for_doctor"]
+
+def test_missing_api_key_returns_503():
+    """Verify friendly 503 response if GEMINI_API_KEY is not configured."""
+    with patch.dict("os.environ", {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}, clear=True):
+        response = client.post(
+            "/api/analyze",
+            data={"text": "Patient: Demo, WBC: 8000", "language": "en"}
+        )
+        assert response.status_code == 503
+        res_json = response.json()
+        assert "error" in res_json
+        assert "GEMINI_API_KEY is not configured" in res_json["error"]

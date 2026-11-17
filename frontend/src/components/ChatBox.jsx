@@ -94,11 +94,7 @@ export default function ChatBox({ context, language }) {
           <div
             key={idx}
             className={`flex items-start gap-3 ${
-              msg.sender === 'user'
-                ? isUrdu
-                  ? 'flex-row'
-                  : 'flex-row-reverse'
-                : ''
+              msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
             }`}
           >
             <div
