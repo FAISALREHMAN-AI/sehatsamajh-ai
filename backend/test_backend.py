@@ -7,27 +7,36 @@ import io
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
+from google.genai.errors import APIError
 
 from main import app
 from schemas import AnalysisResponse, LabItem, MedicineItem, AskRequest
 from safety import verify_safety_flags, get_disclaimer, CRITICAL_THRESHOLDS
+from ai_service import extract_json_data
 
 client = TestClient(app)
 
 def test_health_check():
-    """Verify /api/health returns ok status."""
+    """Verify /api/health strictly returns {"status": "ok"}."""
     response = client.get("/api/health")
     assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert "version" in data
+    assert response.json() == {"status": "ok"}
 
 def test_empty_analyze_request():
     """Analyze must reject requests with neither file nor text."""
     response = client.post("/api/analyze", data={"language": "en"})
     assert response.status_code == 400
     assert "Please provide either a document file" in response.json()["detail"]
+
+def test_empty_file_upload():
+    """Analyze must reject requests with a 0-byte file and no text."""
+    response = client.post(
+        "/api/analyze",
+        data={"language": "en"},
+        files={"file": ("empty.png", b"", "image/png")}
+    )
+    assert response.status_code == 400
+    assert "uploaded file is empty" in response.json()["detail"]
 
 def test_invalid_file_type():
     """Analyze must reject unsupported file formats like executable or zip files."""
@@ -81,17 +90,115 @@ def test_safety_critical_threshold_detection():
     assert checked["urgent_flag"] is True
     assert "critically high" in checked["urgent_reason"]
 
-def test_schema_item_status_validation():
-    """Schema must reject unapproved item statuses."""
-    with pytest.raises(ValidationError):
-        LabItem(
-            name="Hemoglobin",
-            value="13.5",
-            unit="g/dL",
-            reference_range="12-16",
-            status="dangerous",  # Invalid status (must be normal|high|low|unclear)
-            plain_explanation="Normal level"
-        )
+def test_safety_hba1c_does_not_trigger_hemoglobin():
+    """Ensure HbA1c (e.g. 5.2%) is NOT falsely flagged as critically low blood hemoglobin."""
+    data = {
+        "doc_type": "lab_report",
+        "summary": "Routine metabolic panel",
+        "items": [
+            {
+                "name": "HbA1c (Glycated Hemoglobin)",
+                "value": "5.2",
+                "unit": "%",
+                "reference_range": "4.0 - 5.6",
+                "status": "normal",
+                "plain_explanation": "Good long-term glucose control."
+            }
+        ],
+        "urgent_flag": False,
+        "urgent_reason": ""
+    }
+    checked = verify_safety_flags(data, language="en")
+    # Must NOT flag urgent for normal HbA1c
+    assert checked["urgent_flag"] is False
+    assert checked["urgent_reason"] == ""
+
+def test_safety_hemoglobin_no_duplicate_alert():
+    """Ensure Hemoglobin (Hb) = 5.0 does not produce duplicate alerts in urgent_reason."""
+    data = {
+        "doc_type": "lab_report",
+        "summary": "Low blood count noted",
+        "items": [
+            {
+                "name": "Hemoglobin (Hb)",
+                "value": "5.0",
+                "unit": "g/dL",
+                "reference_range": "12.0 - 15.5",
+                "status": "low",
+                "plain_explanation": "Severe anemia."
+            }
+        ],
+        "urgent_flag": False,
+        "urgent_reason": ""
+    }
+    checked = verify_safety_flags(data, language="en")
+    assert checked["urgent_flag"] is True
+    # Count occurrences of the finding in the reason string
+    assert checked["urgent_reason"].count("Hemoglobin (Hb) is critically low") == 1
+
+def test_schema_item_status_normalization():
+    """Schema must normalize status casing and synonyms to approved literals."""
+    item1 = LabItem(
+        name="Hemoglobin",
+        value="13.5",
+        unit="g/dL",
+        reference_range="12-16",
+        status="HIGH",
+        plain_explanation="Normal level"
+    )
+    assert item1.status == "high"
+
+    item2 = LabItem(
+        name="TLC",
+        value="5000",
+        status="Within Normal Limits",
+        plain_explanation="Normal"
+    )
+    assert item2.status == "normal"
+
+def test_schema_none_coercion():
+    """Ensure null values in optional fields coerce safely to strings and lists."""
+    item = LabItem(
+        name="BUN/Creatinine Ratio",
+        value="14.2",
+        unit=None,
+        reference_range=None,
+        status="normal",
+        plain_explanation="Healthy ratio"
+    )
+    assert item.unit == ""
+    assert item.reference_range == ""
+
+    med = MedicineItem(
+        name="Panadol",
+        dose=None,
+        frequency=None,
+        purpose=None,
+        notes=None
+    )
+    assert med.dose == ""
+    assert med.notes == ""
+
+    resp = AnalysisResponse(
+        doc_type="lab_report",
+        summary="Test summary",
+        items=None,
+        medicines=None,
+        questions_for_doctor=None,
+        urgent_flag=False,
+        urgent_reason=None,
+        disclaimer="Test"
+    )
+    assert resp.items == []
+    assert resp.medicines == []
+    assert resp.urgent_reason == ""
+
+def test_extract_json_with_markdown_fences():
+    """Test extract_json_data safely extracts JSON wrapped in markdown blocks."""
+    wrapped = "```json\n{\"doc_type\": \"lab_report\", \"summary\": \"Valid test\"}\n```"
+    result = extract_json_data(wrapped)
+    assert result["doc_type"] == "lab_report"
+    assert result["summary"] == "Valid test"
 
 def test_mocked_analyze_text():
     """Verify end-to-end text analysis with mocked Gemini response."""
@@ -239,3 +346,18 @@ def test_mocked_ask_question():
         assert response.status_code == 200
         data = response.json()
         assert "Augmentin" in data["answer"]
+
+def test_api_limit_error_handling():
+    """Verify rate limit APIError translates to friendly HTTP 429 response."""
+    with patch("ai_service.get_genai_client") as mock_client:
+        mock_instance = MagicMock()
+        api_error = APIError(429, {"error": {"message": "RESOURCE_EXHAUSTED: Quota exceeded for model", "code": 429}})
+        mock_instance.models.generate_content.side_effect = api_error
+        mock_client.return_value = mock_instance
+
+        response = client.post(
+            "/api/analyze",
+            data={"text": "Hemoglobin 13.5", "language": "en"}
+        )
+        assert response.status_code == 429
+        assert "rate limit or quota exceeded" in response.json()["detail"]

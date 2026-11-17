@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, AlertCircle, HelpCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, AlertCircle, HelpCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 export default function ValueTable({ items, language }) {
   if (!items || items.length === 0) return null;
@@ -15,18 +15,18 @@ export default function ValueTable({ items, language }) {
             <span>{isUrdu ? 'معمول (درست)' : language === 'roman_ur' ? 'Normal' : 'Normal'}</span>
           </span>
         );
-      case 'high':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-amber-100 text-amber-900 border border-amber-300">
-            <ArrowUpRight className="w-4 h-4 text-amber-600" />
-            <span>{isUrdu ? 'زیادہ (ہائی)' : language === 'roman_ur' ? 'Ziyada (High)' : 'High'}</span>
-          </span>
-        );
       case 'low':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-sky-100 text-sky-900 border border-sky-300">
-            <ArrowDownRight className="w-4 h-4 text-sky-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            <ArrowDownRight className="w-4 h-4 text-amber-600" />
             <span>{isUrdu ? 'کم (لو)' : language === 'roman_ur' ? 'Kam (Low)' : 'Low'}</span>
+          </span>
+        );
+      case 'high':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-red-100 text-red-900 border border-red-300">
+            <ArrowUpRight className="w-4 h-4 text-red-600" />
+            <span>{isUrdu ? 'زیادہ (ہائی)' : language === 'roman_ur' ? 'Ziyada (High)' : 'High'}</span>
           </span>
         );
       default:
@@ -42,13 +42,13 @@ export default function ValueTable({ items, language }) {
   const getCardBorder = (status) => {
     switch (status) {
       case 'normal':
-        return 'border-l-4 border-l-emerald-500 bg-white hover:bg-emerald-50/20';
-      case 'high':
-        return 'border-l-4 border-l-amber-500 bg-white hover:bg-amber-50/20';
+        return 'border-s-4 border-s-emerald-500 bg-white hover:bg-emerald-50/20';
       case 'low':
-        return 'border-l-4 border-l-sky-500 bg-white hover:bg-sky-50/20';
+        return 'border-s-4 border-s-amber-500 bg-white hover:bg-amber-50/20';
+      case 'high':
+        return 'border-s-4 border-s-red-500 bg-white hover:bg-red-50/20';
       default:
-        return 'border-l-4 border-l-slate-400 bg-white hover:bg-slate-50';
+        return 'border-s-4 border-s-slate-400 bg-white hover:bg-slate-50';
     }
   };
 
@@ -61,10 +61,10 @@ export default function ValueTable({ items, language }) {
           </h3>
           <p className={`text-xs sm:text-sm text-slate-500 mt-1 ${isUrdu ? 'font-urdu' : ''}`}>
             {isUrdu
-              ? 'ٹریفک لائٹ اشارے: سبز (معمول)، پیلا (زیادہ/کم)، سرمئی (غیر واضح)'
+              ? 'ٹریفک لائٹ اشارے: سبز (معمول)، پیلا (کم)، سرخ (زیادہ)، سرمئی (غیر واضح)'
               : language === 'roman_ur'
-              ? 'Traffic-light indicators: Sabz (Normal), Peela (High/Low), Gray (Ghair wazeh)'
-              : 'Traffic-light visual: Green (Normal), Yellow/Amber (Out of range), Slate (Unclear)'}
+              ? 'Traffic-light: Sabz (Normal), Peela (Low), Surkh (High), Gray (Ghair wazeh)'
+              : 'Traffic-light visual: Green (Normal), Yellow (Low), Red (High), Slate (Unclear)'}
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg">

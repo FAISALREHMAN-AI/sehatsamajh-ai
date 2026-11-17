@@ -1,13 +1,8 @@
 import React from 'react';
 import {
-  ArrowLeft,
-  HeartPulse,
   RotateCcw,
-  FileText,
+  HeartPulse,
   ShieldCheck,
-  Stethoscope,
-  Info,
-  Calendar,
 } from 'lucide-react';
 import UrgentBanner from '../components/UrgentBanner';
 import ValueTable from '../components/ValueTable';
@@ -16,6 +11,12 @@ import DoctorQuestions from '../components/DoctorQuestions';
 import ReadAloud from '../components/ReadAloud';
 import ChatBox from '../components/ChatBox';
 import LanguageToggle from '../components/LanguageToggle';
+
+const MULTILINGUAL_DISCLAIMERS = {
+  en: "Medical Disclaimer: SehatSamajh is an educational AI tool designed to help you understand medical documents in plain language. It DOES NOT provide medical diagnosis, clinical opinions, or treatment advice. Never change, pause, or stop prescribed medication on your own. Always discuss all lab results and prescriptions directly with a qualified healthcare professional.",
+  ur: "طبی دستبرداری: صحت سمجھ ایک تعلیمی اے آئی ٹول ہے جو طبی دستاویزات کو آسان زبان میں سمجھنے کے لیے بنایا گیا ہے۔ یہ کوئی طبی تشخیص، معائنہ یا علاج کی تجویز فراہم نہیں کرتا۔ اپنے معالج (ڈاکٹر) کے مشورے کے بغیر ادویات میں کبھی خود سے ردوبدل نہ کریں اور نہ ہی بند کریں۔ اپنی تمام رپورٹس اور نسخہ جات مستند ڈاکٹر کو دکھا کر ان کی رہنمائی حاصل کریں۔",
+  roman_ur: "Medical Disclaimer: SehatSamajh ek taleemi AI tool hai jo medical reports aur prescriptions ko aasan zuban mein samajhnay ke liye banaya gaya hai. Yeh koi tibbi tashkhees (diagnosis) ya ilaj tajweez nahi karta. Apnay doctor ke mashwaray ke baghair dawai hargiz tabdeel ya band na karein. Apni reports aur prescriptions hamesha qualified doctor ko dikhayen."
+};
 
 export default function Result({
   result,
@@ -63,6 +64,8 @@ export default function Result({
       : isUrdu
       ? 'طبی دستاویز'
       : 'Medical Document';
+
+  const activeDisclaimer = MULTILINGUAL_DISCLAIMERS[language] || result.disclaimer;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between" dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -144,7 +147,7 @@ export default function Result({
                 {isUrdu ? 'لازمی طبی دستبرداری (Disclaimer):' : 'Mandatory Medical Disclaimer:'}
               </strong>
               <p className={isUrdu ? 'font-urdu' : ''}>
-                {result.disclaimer}
+                {activeDisclaimer}
               </p>
             </div>
           </div>

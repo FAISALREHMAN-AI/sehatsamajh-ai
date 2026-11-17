@@ -51,6 +51,7 @@ export default function App() {
           onNavigate={handleNavigate}
           language={language}
           onLanguageChange={setLanguage}
+          hasSavedResult={!!result}
         />
       )}
 

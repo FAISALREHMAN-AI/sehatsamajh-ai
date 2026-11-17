@@ -4,11 +4,13 @@ Handles document analysis (text, image, PDF) and safe conversational Q&A.
 """
 
 import os
+import re
 import json
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any, Dict
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 from pydantic import ValidationError
 
 from schemas import AnalysisResponse, DocType, ItemStatus, AskRequest, AskResponse
@@ -23,7 +25,7 @@ def get_model_name() -> str:
     return os.getenv("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
 def get_genai_client() -> genai.Client:
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    api_key = os.getenv("GEMINI_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
     if not api_key:
         raise ValueError(
             "GEMINI_API_KEY is not configured. Please add GEMINI_API_KEY to your .env file or environment variables."
@@ -46,7 +48,7 @@ CORE ETHICAL & SAFETY DIRECTIVES:
 3. NEVER ALTER MEDICINE: Never advise changing, increasing, or stopping any medication. Always emphasize following the doctor's prescription.
 4. EXACT VALUES & REFERENCE RANGES: Extract numbers and units exactly as printed on the document. Compare values ONLY with the reference range printed on the report itself. DO NOT invent or assume standard ranges if not provided on the sheet.
 5. UNCLEAR OR UNREADABLE: If handwritten text, values, or names are blurry, cropped, stained, or illegible, set status to 'unclear' and note in plain_explanation that it could not be read clearly. NEVER guess.
-6. URGENT FLAGS: Set 'urgent_flag' to true ONLY if a value is critically, dangerously far outside the printed range (e.g. extremely dangerous blood sugar, severe anemia, dangerously high potassium), and explain in 'urgent_reason' why prompt medical review is necessary.
+6. URGENT FLAGS: Set 'urgent_flag' to true ONLY if a value is critically, dangerously far outside the printed range (e.g. extremely dangerous blood sugar, severe anemia, dangerously high potassium), and explain in 'urgent_reason' why prompt medical review is necessary. If no urgent finding, set urgent_flag to false and urgent_reason to "".
 7. LANGUAGE: {lang_rule}
 8. DOCUMENT CLASSIFICATION:
    - 'lab_report': If the document is a laboratory blood test, urine test, imaging report, or pathology test.
@@ -61,6 +63,31 @@ def build_analysis_user_prompt(text_input: Optional[str], language: str) -> str:
         prompt += f"\n--- DOCUMENT TEXT ---\n{text_input}\n--- END DOCUMENT TEXT ---\n"
     prompt += "\nExtract all items, provide simple grade-6 explanations, list any medicines and dosages, craft 2-4 helpful questions for their doctor, and flag urgent values if any."
     return prompt
+
+def extract_json_data(raw_text: str) -> Dict[str, Any]:
+    """
+    Robustly parses JSON data from LLM output, handling markdown code fences
+    and extra wrapper characters gracefully.
+    """
+    cleaned = (raw_text or "").strip()
+    if not cleaned:
+        return {}
+
+    # Strip markdown code blocks (e.g. ```json ... ```)
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        cleaned = cleaned.strip()
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        # Fallback: extract the outermost JSON object bounds { ... }
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            return json.loads(cleaned[start:end + 1])
+        raise
 
 async def analyze_document(
     text_content: Optional[str] = None,
@@ -105,8 +132,7 @@ async def analyze_document(
             )
 
             raw_text = response.text or "{}"
-            # Parse JSON
-            parsed_data = json.loads(raw_text)
+            parsed_data = extract_json_data(raw_text)
 
             # Apply safety rules (critical range check, disclaimer enforcement)
             safe_data = verify_safety_flags(parsed_data, language=language)
@@ -120,6 +146,9 @@ async def analyze_document(
             last_error = err
             # Add guidance for retry
             contents.append("Notice: The previous response was not strictly valid JSON matching the exact schema. Please output strictly compliant JSON matching the requested structure.")
+        except APIError as api_err:
+            logger.error(f"Gemini API error during document analysis: {api_err}")
+            raise api_err
         except Exception as e:
             logger.error(f"Gemini API invocation failed: {e}")
             raise e
@@ -160,14 +189,24 @@ Please answer the patient's question according to the safety rules."""
         temperature=0.2,
     )
 
+    fallback_answers = {
+        "ur": "میں اس سوال کا جواب تیار نہیں کر سکا۔ برائے مہربانی اپنے ڈاکٹر سے براہ راست مشورہ کریں۔",
+        "roman_ur": "Hum is sawal ka jawab tayyar nahi kar sakay. Baraye meharbani apnay doctor se ruju karein.",
+        "en": "I could not generate an answer based on this document. Please consult your doctor directly."
+    }
+    fallback_text = fallback_answers.get(req.language, fallback_answers["en"])
+
     try:
         response = client.models.generate_content(
             model=model_name,
             contents=[user_prompt],
             config=config,
         )
-        answer_text = response.text or "I could not generate an answer. Please consult your doctor."
+        answer_text = response.text or fallback_text
         return AskResponse(answer=answer_text.strip())
+    except APIError as api_err:
+        logger.error(f"Gemini API error during follow-up question: {api_err}")
+        raise api_err
     except Exception as e:
         logger.error(f"Error in ask endpoint: {e}")
         raise e

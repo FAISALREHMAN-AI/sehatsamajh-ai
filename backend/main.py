@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from google.genai.errors import APIError
 
 # Load environment variables (.env in backend or project root)
 load_dotenv()
@@ -33,7 +34,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration for local React Vite dev server
+# CORS configuration for local React dev server and production clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -56,7 +57,7 @@ MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB limit
 @app.get("/api/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint confirming API service is running."""
-    return HealthResponse(status="ok", version="1.0.0")
+    return HealthResponse(status="ok")
 
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_report(
@@ -106,12 +107,21 @@ async def analyze_report(
             )
 
         file_bytes = await file.read()
-        if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        if len(file_bytes) == 0:
+            if not has_text:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The uploaded file is empty. Please upload a valid medical report file or paste the text."
+                )
+            file_bytes = None
+            mime_type = None
+        elif len(file_bytes) > MAX_FILE_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail="File size exceeds the 15 MB limit. Please upload a smaller image or document."
             )
-        mime_type = content_type
+        else:
+            mime_type = content_type
 
     try:
         result = await analyze_document(
@@ -127,6 +137,18 @@ async def analyze_report(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=err_msg
+        )
+    except APIError as api_err:
+        err_str = str(api_err).lower()
+        logger.error(f"Gemini APIError in analyze_report: {api_err}")
+        if getattr(api_err, "code", None) == 429 or "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Gemini AI rate limit or quota exceeded. Please wait a moment and try again."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Google Gemini AI service error: {str(api_err)}"
         )
     except Exception as e:
         logger.exception("Unexpected error processing document analysis")
@@ -154,6 +176,18 @@ async def ask_question_endpoint(req: AskRequest):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(ve)
+        )
+    except APIError as api_err:
+        err_str = str(api_err).lower()
+        logger.error(f"Gemini APIError in ask_question: {api_err}")
+        if getattr(api_err, "code", None) == 429 or "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Gemini AI rate limit or quota exceeded. Please wait a moment and try again."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Google Gemini AI service error: {str(api_err)}"
         )
     except Exception as e:
         logger.exception("Error answering follow-up question")

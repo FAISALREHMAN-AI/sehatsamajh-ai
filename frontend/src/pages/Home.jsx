@@ -9,10 +9,11 @@ import {
   HeartPulse,
   Stethoscope,
   Pill,
+  Clock,
 } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
 
-export default function Home({ onNavigate, language, onLanguageChange }) {
+export default function Home({ onNavigate, language, onLanguageChange, hasSavedResult = false }) {
   const isUrdu = language === 'ur';
 
   return (
@@ -94,6 +95,17 @@ export default function Home({ onNavigate, language, onLanguageChange }) {
             <Sparkles className="w-5 h-5 text-amber-500" />
             <span>{isUrdu ? 'ڈیمو رپورٹ آزمائیں' : language === 'roman_ur' ? 'Sample Report Try Karein' : 'Try a Sample Report'}</span>
           </button>
+
+          {hasSavedResult && (
+            <button
+              type="button"
+              onClick={() => onNavigate('result')}
+              className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-base border border-emerald-300 shadow-sm transition-all flex items-center justify-center gap-2"
+            >
+              <Clock className="w-5 h-5 text-emerald-600" />
+              <span>{isUrdu ? 'پچھلا نتیجہ دیکھیں' : language === 'roman_ur' ? 'Pichla Result Dekhein' : 'View Last Result'}</span>
+            </button>
+          )}
         </div>
 
         {/* Value Highlights */}
@@ -113,7 +125,7 @@ export default function Home({ onNavigate, language, onLanguageChange }) {
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-4">
               <Activity className="w-6 h-6" />
             </div>
             <h3 className={`font-bold text-slate-900 text-lg mb-1 ${isUrdu ? 'font-urdu' : ''}`}>
@@ -122,7 +134,7 @@ export default function Home({ onNavigate, language, onLanguageChange }) {
             <p className={`text-slate-600 text-sm leading-relaxed ${isUrdu ? 'font-urdu' : ''}`}>
               {isUrdu
                 ? 'سبز، پیلا اور سرخ رنگوں سے فوری اندازہ لگائیں کہ کون سا نتیجہ معمول کے مطابق ہے۔'
-                : 'Easily spot normal, elevated, or low test values compared strictly to the printed reference range.'}
+                : 'Green (Normal), Yellow (Low), and Red (High) cards based strictly on the printed reference range.'}
             </p>
           </div>
 
