@@ -1,8 +1,9 @@
 """
 Backend tests for SehatSamajh.
-Covers health check, input validation, schemas, safety rules, and AI service logic.
+Covers health check, input validation, schemas, safety rules, image/PDF multimodal, and AI service logic.
 """
 
+import io
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
@@ -29,7 +30,7 @@ def test_empty_analyze_request():
     assert "Please provide either a document file" in response.json()["detail"]
 
 def test_invalid_file_type():
-    """Analyze must reject unsupported file formats like executable or text files disguised."""
+    """Analyze must reject unsupported file formats like executable or zip files."""
     response = client.post(
         "/api/analyze",
         data={"language": "en"},
@@ -134,3 +135,107 @@ def test_mocked_analyze_text():
         assert result["doc_type"] == "lab_report"
         assert len(result["items"]) == 1
         assert result["items"][0]["status"] == "normal"
+
+def test_mocked_analyze_image():
+    """Verify multimodal image upload analysis."""
+    mock_response_data = {
+        "doc_type": "lab_report",
+        "summary": "Image analysis of blood report.",
+        "items": [
+            {
+                "name": "Fasting Glucose",
+                "value": "184",
+                "unit": "mg/dL",
+                "reference_range": "70 - 99",
+                "status": "high",
+                "plain_explanation": "Blood sugar is higher than standard reference."
+            }
+        ],
+        "medicines": [],
+        "questions_for_doctor": ["Should we check HbA1c?"],
+        "urgent_flag": False,
+        "urgent_reason": "",
+        "disclaimer": "Sample disclaimer"
+    }
+
+    mock_gemini_obj = MagicMock()
+    mock_gemini_obj.text = AnalysisResponse(**mock_response_data).model_dump_json()
+
+    with patch("ai_service.get_genai_client") as mock_client:
+        mock_instance = MagicMock()
+        mock_instance.models.generate_content.return_value = mock_gemini_obj
+        mock_client.return_value = mock_instance
+
+        fake_image_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4"
+        response = client.post(
+            "/api/analyze",
+            data={"language": "ur"},
+            files={"file": ("test_report.png", fake_image_bytes, "image/png")}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["doc_type"] == "lab_report"
+        assert data["items"][0]["name"] == "Fasting Glucose"
+
+def test_mocked_analyze_pdf():
+    """Verify multimodal PDF upload analysis."""
+    mock_response_data = {
+        "doc_type": "prescription",
+        "summary": "Doctor prescription for infection.",
+        "items": [],
+        "medicines": [
+            {
+                "name": "Augmentin",
+                "dose": "625mg",
+                "frequency": "Twice daily",
+                "purpose": "Antibiotic for bacterial infection",
+                "notes": "Take after meals for 5 days"
+            }
+        ],
+        "questions_for_doctor": ["Can I take this with dairy?"],
+        "urgent_flag": False,
+        "urgent_reason": "",
+        "disclaimer": "Sample disclaimer"
+    }
+
+    mock_gemini_obj = MagicMock()
+    mock_gemini_obj.text = AnalysisResponse(**mock_response_data).model_dump_json()
+
+    with patch("ai_service.get_genai_client") as mock_client:
+        mock_instance = MagicMock()
+        mock_instance.models.generate_content.return_value = mock_gemini_obj
+        mock_client.return_value = mock_instance
+
+        fake_pdf_bytes = b"%PDF-1.4\n%Fake PDF content for test\n%%EOF"
+        response = client.post(
+            "/api/analyze",
+            data={"language": "roman_ur"},
+            files={"file": ("prescription.pdf", fake_pdf_bytes, "application/pdf")}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["doc_type"] == "prescription"
+        assert len(data["medicines"]) == 1
+        assert data["medicines"][0]["name"] == "Augmentin"
+
+def test_mocked_ask_question():
+    """Verify safe Q&A response endpoint."""
+    mock_gemini_obj = MagicMock()
+    mock_gemini_obj.text = "Augmentin is an antibiotic used to clear bacterial infections. Please follow your doctor's exact instructions."
+
+    with patch("ai_service.get_genai_client") as mock_client:
+        mock_instance = MagicMock()
+        mock_instance.models.generate_content.return_value = mock_gemini_obj
+        mock_client.return_value = mock_instance
+
+        response = client.post(
+            "/api/ask",
+            json={
+                "context": {"doc_type": "prescription", "summary": "Sample"},
+                "question": "What is Augmentin for?",
+                "language": "en"
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "Augmentin" in data["answer"]
