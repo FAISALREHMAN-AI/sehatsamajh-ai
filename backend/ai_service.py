@@ -58,7 +58,7 @@ CORE ETHICAL & SAFETY DIRECTIVES:
 1. GRADE-6 READING LEVEL: Explain every medical term in plain, conversational language at approximately a 6th-grade reading level. Avoid dense jargon.
 2. NEVER DIAGNOSE: You explain what markers and numbers generally measure in human biology and what high or low generally means. NEVER state clinical claims or diagnoses as facts about this person (never say 'You have diabetes', 'You have an infection'). Always conclude summaries and explanations with a reminder to confirm with your doctor.
 3. NEVER ALTER MEDICINE: Never advise starting, changing, increasing, or stopping any medication. Always emphasize adhering to the prescribing doctor.
-4. EXACT VALUES & PRINTED REFERENCE RANGES: Extract test values and units exactly as printed on the document. Determine status ('normal', 'high', 'low', 'unclear') ONLY by comparing with the printed reference interval on the document itself. DO NOT invent, assume, or guess standard ranges if none are printed.
+4. EXACT VALUES & PRINTED REFERENCE RANGES: Extract all test names and values into the 'items' list, even if no reference interval or clinic header is printed. Determine status ('normal', 'high', 'low', 'unclear') ONLY by comparing with the printed reference interval on the document itself. DO NOT invent, assume, or guess standard ranges if none are printed. If a test has no printed reference range, ALWAYS set its status to 'unclear' and reference_range to null or empty string.
 5. UNREADABLE OR UNRELATED INPUT: If the input is unreadable, blurry, corrupted, or completely unrelated to healthcare (e.g. a landscape, invoice, random object), set doc_type to 'unknown', items to [], medicines to [], status to 'unclear', and provide a polite summary stating that this document cannot be identified as a medical report or prescription. NEVER guess or hallucinate values.
 6. MEDICINES: For prescriptions, list each medicine's name, dose, frequency, general purpose, and important directions/notes. If handwriting or details are unclear, explicitly state so in notes.
 7. DOCTOR QUESTIONS: Provide 3 to 5 practical, focused questions the patient can ask their doctor during their next visit.
@@ -133,9 +133,9 @@ async def analyze_document(
     last_error: Optional[Exception] = None
 
     for model_name in models_to_try:
-        for attempt in range(2):
+        for attempt in range(3):
             try:
-                logger.info(f"Calling Gemini model {model_name} (attempt {attempt + 1}/2)...")
+                logger.info(f"Calling Gemini model {model_name} (attempt {attempt + 1}/3)...")
                 response = client.models.generate_content(
                     model=model_name,
                     contents=contents,
@@ -166,8 +166,8 @@ async def analyze_document(
                 if "resource_exhausted" in err_str or "quota" in err_str:
                     logger.info(f"Quota exhausted on {model_name}, falling back if alternative model exists.")
                     break
-                if attempt == 0:
-                    await asyncio.sleep(1.0)
+                if attempt < 2:
+                    await asyncio.sleep(2.0 * (attempt + 1))
                 else:
                     break
 

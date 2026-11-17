@@ -246,6 +246,10 @@ def verify_safety_flags(analysis_dict: dict, language: str = "en") -> dict:
             urgent_reason = f"Medical Notice: Aap ke test mein baaz results normal hadd se kafi mukhtalif hain ({critical_msg}). Baraye meharbani jald apnay doctor se ruju karein."
         else:
             urgent_reason = f"Medical Notice: One or more lab values are significantly outside the reference range ({critical_msg}). Please schedule a prompt consultation with your doctor."
+    elif not any(item.get("status") in ("high", "low") for item in items):
+        # When all tests are normal or unclear with no critical anomaly, suppress urgent flag
+        urgent = False
+        urgent_reason = ""
 
     analysis_dict["urgent_flag"] = bool(urgent)
     analysis_dict["urgent_reason"] = urgent_reason if urgent else ""
