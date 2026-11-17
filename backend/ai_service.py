@@ -124,9 +124,9 @@ async def analyze_document(
 
     last_error: Optional[Exception] = None
     # 2 attempts: primary attempt + 1 retry on malformed schema / JSON
-    for attempt in range(2):
+    for attempt in range(3):
         try:
-            logger.info(f"Calling Gemini model {model_name} (attempt {attempt + 1}/2)...")
+            logger.info(f"Calling Gemini model {model_name} (attempt {attempt + 1}/3)...")
             response = client.models.generate_content(
                 model=model_name,
                 contents=contents,
@@ -153,8 +153,8 @@ async def analyze_document(
         except (APIError, Exception) as transient_err:
             logger.warning(f"Transient error on attempt {attempt + 1}: {transient_err}")
             last_error = transient_err
-            if attempt == 0:
-                await asyncio.sleep(1.0)
+            if attempt < 2:
+                await asyncio.sleep(2.0 * (attempt + 1))
             else:
                 raise transient_err
 
@@ -204,7 +204,7 @@ Please answer the patient's question according to all safety rules."""
     fallback_text = fallback_answers.get(req.language, fallback_answers["en"])
 
     last_err: Optional[Exception] = None
-    for attempt in range(2):
+    for attempt in range(3):
         try:
             response = client.models.generate_content(
                 model=model_name,
@@ -217,14 +217,14 @@ Please answer the patient's question according to all safety rules."""
         except APIError as api_err:
             logger.warning(f"Gemini API error in ask attempt {attempt + 1}: {api_err}")
             last_err = api_err
-            if attempt == 0:
-                await asyncio.sleep(1.0)
+            if attempt < 2:
+                await asyncio.sleep(2.0 * (attempt + 1))
             else:
                 raise api_err
         except Exception as e:
             logger.warning(f"Error in ask attempt {attempt + 1}: {e}")
             last_err = e
-            if attempt == 0:
-                await asyncio.sleep(1.0)
+            if attempt < 2:
+                await asyncio.sleep(2.0 * (attempt + 1))
             else:
                 raise e
